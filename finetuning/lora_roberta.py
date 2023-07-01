@@ -108,7 +108,7 @@ else:
 
 config = AutoConfig.from_pretrained(args.model_name_or_path, num_labels=num_labels, finetuning_task=args.task_name)
 tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, padding_side='right')
-model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_path, config=config, return_dict=True)
+model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_path, config=config)
 # some stupid bug to use json file to load peft_config
 with open('lora_config_glue.json', 'r') as f:
     peft_config = json.load(f)
