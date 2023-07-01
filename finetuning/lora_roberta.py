@@ -284,6 +284,7 @@ peft_model_path = f"{args.model_name_or_path}_{args.peft_type}_{ckpt}"
 inference_model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_path, config=config)
 # Load the Lora model
 inference_model = PeftModel.from_pretrained(inference_model, peft_model_id) #possible bug in this loading
+inference_model.to(args.device)
 inference_model.eval()
 
 for step, batch in enumerate(tqdm(test_dataloader)):
