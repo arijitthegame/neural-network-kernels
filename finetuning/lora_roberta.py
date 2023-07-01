@@ -74,6 +74,7 @@ parser.add_argument(
         help="If passed, pad all samples to `max_length`. Otherwise, dynamic padding is used.",
     )
 parser.add_argument("--weight_decay", type=float, default=0.0, help="Weight decay to use.")
+parser.add_argument('--ckpt_criterion', type=str, default='accuracy', choices=['accuracy', 'f1'])
 
 
 args = parser.parse_args()
@@ -108,6 +109,7 @@ else:
 config = AutoConfig.from_pretrained(args.model_name_or_path, num_labels=num_labels, finetuning_task=args.task_name)
 tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, padding_side='right')
 model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_path, config=config, return_dict=True)
+# some stupid bug to use json file to load peft_config
 with open('lora_config_glue.json', 'r') as f:
     peft_config = json.load(f)
 
@@ -276,8 +278,8 @@ for epoch in range(num_epochs):
 
 
 # load best model based on validation accuracy, this ckpt line will throw an error
-# TODO: Fix this dict issue 
-ckpt = max(d, key=d.get)
+res = {key: d[key][args.ckpt_criterion] for key, _ in d.items()}
+ckpt = max(res, key=res.get)
 peft_model_path = f"{args.model_name_or_path}_{args.peft_type}_{ckpt}"
 inference_model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_path, config=config)
 # Load the Lora model
