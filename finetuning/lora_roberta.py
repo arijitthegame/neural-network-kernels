@@ -81,7 +81,7 @@ np.random.seed(args.seed)
 random.seed(args.seed)
 torch.manual_seed(args.seed)
 
-peft_type = args.peft_type
+peft_type = peft_types_map['args.peft_type']
 
 raw_datasets = load_dataset("glue", args.task_name)
 
@@ -108,6 +108,12 @@ else:
 config = AutoConfig.from_pretrained(args.model_name_or_path, num_labels=num_labels, finetuning_task=args.task_name)
 tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, padding_side='right')
 model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_path, config=config, return_dict=True)
+with open('lora_config_glue.json', 'r') as f:
+    peft_config = json.load(f)
+
+peft_config = LORAConfig(peft_config)
+
+model = get_peft_model(model, peft_config)
 
 if getattr(tokenizer, "pad_token_id") is None:
     tokenizer.pad_token_id = tokenizer.eos_token_id
@@ -222,14 +228,6 @@ optimizer_grouped_parameters = [
         },
     ]
 optimizer = AdamW(optimizer_grouped_parameters, lr=args.lr, weight_decay=args.weight_decay)
-
-with open('lora_config_glue.json', 'r') as f:
-    peft_config = json.load(f)
-
-peft_config = LORAConfig(peft_config)
-
-model = get_peft_model(model, peft_config)
-
 
 # Instantiate scheduler
 lr_scheduler = get_linear_schedule_with_warmup(
