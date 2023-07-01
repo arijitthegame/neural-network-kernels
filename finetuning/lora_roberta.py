@@ -277,7 +277,7 @@ for epoch in range(num_epochs):
     d[epoch] = eval_metric
 
 
-# load best model based on validation accuracy, this ckpt line will throw an error
+# load best model based on validation accuracy
 res = {key: d[key][args.ckpt_criterion] for key, _ in d.items()}
 ckpt = max(res, key=res.get)
 peft_model_path = f"{args.model_name_or_path}_{args.peft_type}_{ckpt}"
