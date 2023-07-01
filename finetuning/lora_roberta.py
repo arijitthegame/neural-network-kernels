@@ -113,7 +113,8 @@ model = AutoModelForSequenceClassification.from_pretrained(args.model_name_or_pa
 with open('lora_config_glue.json', 'r') as f:
     peft_config = json.load(f)
 
-peft_config = LORAConfig(peft_config)
+peft_config = LORAConfig(**peft_config)
+
 
 model = get_peft_model(model, peft_config)
 
