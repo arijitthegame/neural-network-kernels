@@ -300,5 +300,5 @@ for step, batch in enumerate(tqdm(test_dataloader)):
     )
 
 test_metric = metric.compute()
-print(f"Final test metric for task {args.task} is {test_metric}")
+print(f"Final test metric for task {args.task_name} is {test_metric}")
 
