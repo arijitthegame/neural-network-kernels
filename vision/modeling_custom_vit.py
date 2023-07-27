@@ -25,7 +25,7 @@ from transformers.utils import (
 )
 from transformers import ViTConfig, ViTPreTrainedModel
 from transformers.models.vit.modeling_vit import ViTPooler
-
+from nnk import *
 
 logger = logging.get_logger(__name__)
 
@@ -160,10 +160,14 @@ class ViTForCustomImageClassification(ViTPreTrainedModel):
 
 
 class LinearViTForImageClassification(ViTPreTrainedModel):
-    def __init__(self, config: ViTConfig) -> None:
+    def __init__(self, config: ViTConfig, A_fun: callable, a_fun: callable, xis: callable, num_rfs: int) -> None:
         super().__init__(config)
 
         self.num_labels = config.num_labels
+        self.A_fun = A_fun
+        self.a_fun = a_fun
+        self.xis = xis
+        self.num_rfs = num_rfs
         self.vit = ViTModel(config, add_pooling_layer=False) #the og image classification model do not use the pooling layer   
         self.pooler = ViTPooler(config) #add pooling layer
         # Classifier head
@@ -174,7 +178,9 @@ class LinearViTForImageClassification(ViTPreTrainedModel):
         # get weights and bias to linearize
         self.w = self.pooler.dense.weight
         # the bias in the pooler layer is the 0 vector so going to ignore the first pass
-
+        self.output_rfs = input_to_rfs_torch(self.w, A_fun, a_fun, xis, num_rfs, self.w.shape[1])
+        # TO CHECK: Might be issues with some gradient hooks
+        self.output_rfs = nn.Parameter(self.output_rfs)
         # linearize the pooler layer 
 
 
@@ -185,6 +191,7 @@ class LinearViTForImageClassification(ViTPreTrainedModel):
         config_class=_CONFIG_FOR_DOC,
         expected_output=_IMAGE_CLASS_EXPECTED_OUTPUT,
     )
+    # TODO : Precompute the x_rfs
     def forward(
         self,
         pixel_values: Optional[torch.Tensor] = None,
@@ -211,9 +218,10 @@ class LinearViTForImageClassification(ViTPreTrainedModel):
             interpolate_pos_encoding=interpolate_pos_encoding,
             return_dict=return_dict,
         )
-
-        sequence_output = outputs['pooler_output']
-
+        first_token_tensor = outputs[:, 0]
+        x_rfs = input_to_rfs_torch(first_token_tensor, self.A_fun, self.a_fun, self.xis, self.num_rfs, first_token_tensor.shape[1])
+        sequence_output = x_rf @ self.output_rfs.t()
+        # compute the linearized pooling layer
         logits = self.classifier(sequence_output)
 
         loss = None
