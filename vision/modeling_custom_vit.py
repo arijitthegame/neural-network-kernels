@@ -23,7 +23,7 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from transformers import ViTConfig, ViTPreTrainedModel
+from transformers import ViTConfig, ViTPreTrainedModel, ViTModel
 from transformers.models.vit.modeling_vit import ViTPooler
 from nnk import *
 
@@ -161,7 +161,7 @@ class ViTForCustomImageClassification(ViTPreTrainedModel):
 
 class LinearViTForImageClassification(ViTPreTrainedModel):
     def __init__(self, config: ViTConfig, A_fun: callable, a_fun: callable, xis: callable, num_rfs: int) -> None:
-        super().__init__(config)
+        super().__init__(config, A_fun, a_fun, xis, num_rfs)
 
         self.num_labels = config.num_labels
         self.A_fun = A_fun
@@ -220,7 +220,7 @@ class LinearViTForImageClassification(ViTPreTrainedModel):
         )
         first_token_tensor = outputs[:, 0]
         x_rfs = input_to_rfs_torch(first_token_tensor, self.A_fun, self.a_fun, self.xis, self.num_rfs, first_token_tensor.shape[1])
-        sequence_output = x_rf @ self.output_rfs.t()
+        sequence_output = x_rfs @ self.output_rfs.t()
         # compute the linearized pooling layer
         logits = self.classifier(sequence_output)
 
