@@ -2,7 +2,7 @@ import math
 import torch
 
 # for pytorch head is 2nd dim or in other tensors would of shape [B,H, L, D]
-def expplus_pytorch(data_orig,
+def expplus(data_orig,
             other_data, #other data should also have [B,H,F,D]
             is_query,
             projection_matrix=None,
