@@ -274,7 +274,7 @@ class CustomAdapterBertModel(BertModel):
                                                   )
 
 
-class BertForSequenceClassification(BertPreTrainedModel):
+class CustomBertForSequenceClassification(nn.Module):
     def __init__(self, config, num_rfs,
           A_fun,
           a_fun,
@@ -285,8 +285,9 @@ class BertForSequenceClassification(BertPreTrainedModel):
           init_weights,
           normalization=False,
           normalization_constant=None,
-          **kwargs):
-        super().__init__(config)
+          model_name_or_path = 'bert-base-uncased'
+                 **kwargs):
+        super().__init__()
         self.num_rfs = num_rfs
         self.A_fun = A_fun
         self.a_fun = a_fun
@@ -299,8 +300,10 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.config = config
         self.normalization = normalization
         self.normalization_constant = normalization_constant
+        self.model_name_or_path = model_name_or_path
 
-        self.bert = CustomAdapterBertModel(config=self.config,
+
+        self.bert = CustomAdapterBertModel.from_pretrained(self.model_name_or_path, config=self.config,
                                                   num_rfs=self.num_rfs,
                                                   A_fun=self.A_fun,
                                                   a_fun=self.a_fun,
@@ -319,7 +322,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         # Initialize weights and apply final processing
-        self.post_init()
+        # self.post_init()
 
     def forward(
         self,
@@ -391,4 +394,3 @@ class BertForSequenceClassification(BertPreTrainedModel):
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
-
