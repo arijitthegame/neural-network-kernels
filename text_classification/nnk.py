@@ -15,7 +15,7 @@ def torch_apply_along_axis(function, x, axis: int = 0):
 
 
 def input_to_rfs_torch_vectorized(xw, AB_fun, ab_fun, xis, num_rfs, dim, device, 
-                                  seed=0, normalize=False, normalization_constant=None
+                                  seed=0, normalize=False, normalization_constant=None,
                                   orthogonal=False):
     if normalize :
       if normalization_constant is None :
@@ -36,7 +36,7 @@ def input_to_rfs_torch_vectorized(xw, AB_fun, ab_fun, xis, num_rfs, dim, device,
         gs = torch.rand(size=(num_rfs, dim)).cuda()
       else :
         gs = gaussian_orthogonal_random_matrix(num_rfs, dim, scaling = 0, device = 'cuda')
-        
+
     renorm_gs = (ab_coeffs * gs.t()).t()
     if len(xw.shape) == 2 :
       dot_products = torch.einsum('ij,jk->ik', xw, renorm_gs.t())
