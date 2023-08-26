@@ -1,6 +1,10 @@
 import math
 import torch
 
+from distutils.version import LooseVersion
+
+TORCH_GE_1_8_0 = LooseVersion(torch.__version__) >= LooseVersion('1.8.0')
+
 # for pytorch head is 2nd dim or in other tensors would of shape [B,H, L, D]
 def expplus(data_orig,
             other_data, #other data should also have [B,H,F,D]
@@ -94,3 +98,39 @@ def expplus(data_orig,
         numerical_stabilizer)
 
   return data_dash
+
+
+def orthogonal_matrix_chunk(cols, device = None):
+    unstructured_block = torch.randn((cols, cols), device = device)
+    if TORCH_GE_1_8_0:
+        q, r = torch.linalg.qr(unstructured_block.cpu(), mode = 'reduced')
+    else:
+        q, r = torch.qr(unstructured_block.cpu(), some = True)
+    q, r = map(lambda t: t.to(device), (q, r))
+    return q.t()
+
+
+def gaussian_orthogonal_random_matrix(nb_rows, nb_columns, scaling = 0, device = None):
+    nb_full_blocks = int(nb_rows / nb_columns)
+
+    block_list = []
+
+    for _ in range(nb_full_blocks):
+        q = orthogonal_matrix_chunk(nb_columns, device = device)
+        block_list.append(q)
+
+    remaining_rows = nb_rows - nb_full_blocks * nb_columns
+    if remaining_rows > 0:
+        q = orthogonal_matrix_chunk(nb_columns, device = device)
+        block_list.append(q[:remaining_rows])
+
+    final_matrix = torch.cat(block_list)
+
+    if scaling == 0:
+        multiplier = torch.randn((nb_rows, nb_columns), device = device).norm(dim = 1)
+    elif scaling == 1:
+        multiplier = math.sqrt((float(nb_columns))) * torch.ones((nb_rows,), device = device)
+    else:
+        raise ValueError(f'Invalid scaling {scaling}')
+
+    return torch.diag(multiplier) @ final_matrix

@@ -2,6 +2,8 @@ import torch
 import math
 from torch import nn
 
+from performer_attention import gaussian_orthogonal_random_matrix
+
 def torch_apply_along_axis(function, x, axis: int = 0):
     """
     Torch equivalent of numpy apply along axis. This function is slow and should be avoided
@@ -12,7 +14,9 @@ def torch_apply_along_axis(function, x, axis: int = 0):
     ], dim=axis)
 
 
-def input_to_rfs_torch_vectorized(xw, AB_fun, ab_fun, xis, num_rfs, dim, device, seed=0, normalize=False, normalization_constant=None):
+def input_to_rfs_torch_vectorized(xw, AB_fun, ab_fun, xis, num_rfs, dim, device, 
+                                  seed=0, normalize=False, normalization_constant=None
+                                  orthogonal=False):
     if normalize :
       if normalization_constant is None :
         xw = torch.nn.functional.normalize(xw)
@@ -23,9 +27,16 @@ def input_to_rfs_torch_vectorized(xw, AB_fun, ab_fun, xis, num_rfs, dim, device,
     AB_coeffs = torch_apply_along_axis(AB_fun, xis, 0)
     torch.manual_seed(seed)
     if device == 'cpu':
-      gs = torch.rand(size=(num_rfs, dim))
+      if orthogonal is False :
+        gs = torch.rand(size=(num_rfs, dim))
+      else : 
+        gs = gaussian_orthogonal_random_matrix(num_rfs, dim, scaling = 0, device = 'cpu')
     else :
-      gs = torch.rand(size=(num_rfs, dim)).cuda()
+      if orthogonal is False :
+        gs = torch.rand(size=(num_rfs, dim)).cuda()
+      else :
+        gs = gaussian_orthogonal_random_matrix(num_rfs, dim, scaling = 0, device = 'cuda')
+        
     renorm_gs = (ab_coeffs * gs.t()).t()
     if len(xw.shape) == 2 :
       dot_products = torch.einsum('ij,jk->ik', xw, renorm_gs.t())
