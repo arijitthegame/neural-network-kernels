@@ -69,19 +69,19 @@ class CustomLoraBertSelfAttention(nn.Module):
                                config.hidden_size, self.model_device, self.seed, 
                                self.normalize, self.normalization_constant, self.orthogonal
                                )
-        self.modulating_query = nn.Parameter(torch.zeros(self.all_head_size)).to(self.model_device)
+        self.modulating_query = nn.Parameter(torch.zeros(self.all_head_size), requires_grad=True)
         self.delta_value = NNK(self.initial_value_weights, self.A_fun, self.a_fun, self.xis, self.num_rfs, 
                                config.hidden_size, self.model_device, self.seed, 
                                self.normalize, self.normalization_constant, self.orthogonal
                                )
-        self.modulating_value = nn.Parameter(torch.zeros(self.all_head_size)).to(self.model_device)
+        self.modulating_value = nn.Parameter(torch.zeros(self.all_head_size), requires_grad=True)
 
         if self.target_k :
           self.delta_key = NNK(self.initial_key_weights, self.A_fun, self.a_fun, self.xis, self.num_rfs, 
                                config.hidden_size, self.model_device, self.seed, 
                                self.normalize, self.normalization_constant, self.orthogonal
                                )
-          self.modulating_key = nn.Parameter(torch.zeros(self.all_head_size)).to(self.model_device)
+          self.modulating_key = nn.Parameter(torch.zeros(self.all_head_size), requires_grad=True)
           
         
 
