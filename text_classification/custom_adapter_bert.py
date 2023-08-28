@@ -41,7 +41,7 @@ class CustomAdapterBertSelfOutput(nn.Module):
         model_device=self.model_device,
         seed=self.seed,
         down_sample=self.down_sample,
-        init_weights='mam',
+        init_weights=self.init_weights,
         normalization=self.normalization,
         normalization_constant=self.normalization_constant,
         )
