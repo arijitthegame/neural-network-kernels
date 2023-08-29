@@ -17,6 +17,7 @@ class CustomAdapterBertSelfOutput(nn.Module):
         init_weights, 
         normalization=False,
         normalization_constant=None,
+        orthogonal=False,
         **kwargs):
         super().__init__()
 
@@ -31,6 +32,7 @@ class CustomAdapterBertSelfOutput(nn.Module):
         self.init_weights = init_weights
         self.normalization = normalization
         self.normalization_constant = normalization_constant
+        self.orthogonal = orthogonal
 
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
@@ -44,6 +46,7 @@ class CustomAdapterBertSelfOutput(nn.Module):
         init_weights=self.init_weights,
         normalization=self.normalization,
         normalization_constant=self.normalization_constant,
+        orthogonal=self.orthogonal,
         )
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
@@ -66,6 +69,7 @@ class CustomAdapterBertOutput(nn.Module):
         init_weights, 
         normalization=False,
         normalization_constant=None,
+        orthogonal=False,
         **kwargs):
         super().__init__()
         self.config = config
@@ -79,6 +83,7 @@ class CustomAdapterBertOutput(nn.Module):
         self.init_weights = init_weights
         self.normalization = normalization
         self.normalization_constant = normalization_constant
+        self.orthogonal = orthogonal
 
         self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
@@ -92,6 +97,7 @@ class CustomAdapterBertOutput(nn.Module):
         init_weights = self.init_weights,
         normalization=self.normalization,
         normalization_constant=self.normalization_constant,
+        orthogonal=self.orthogonal,
         )
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
@@ -116,6 +122,7 @@ class CustomAdapterBertAttention(BertAttention):
           position_embedding_type=None,
           normalization=False,
           normalization_constant=None,
+          orthogonal=False,
           **kwargs):
         super().__init__(config)
 
@@ -130,6 +137,7 @@ class CustomAdapterBertAttention(BertAttention):
         self.init_weights = init_weights
         self.normalization = normalization
         self.normalization_constant = normalization_constant
+        self.orthogonal = orthogonal
 
         self.output = CustomAdapterBertSelfOutput(config=self.config,
                                                   num_rfs=self.num_rfs,
@@ -142,6 +150,7 @@ class CustomAdapterBertAttention(BertAttention):
                                                   init_weights=self.init_weights,
                                                   normalization=self.normalization,
                                                   normalization_constant=self.normalization_constant,
+                                                  orthogonal=self.orthogonal,
                                                   )
 
 
@@ -156,6 +165,7 @@ class CustomAdapterBertLayer(BertLayer):
           init_weights,
           normalization=False,
           normalization_constant=None,
+          orthogonal=False,
           **kwargs):
         super().__init__(config)
         self.config = config
@@ -181,6 +191,7 @@ class CustomAdapterBertLayer(BertLayer):
                                                   init_weights=self.init_weights,
                                                   normalization=self.normalization,
                                                   normalization_constant=self.normalization_constant,
+                                                  orthogonal=self.orthogonal,
                                                     )
         self.output = CustomAdapterBertOutput(config=self.config,
                                                   num_rfs=self.num_rfs,
@@ -193,6 +204,7 @@ class CustomAdapterBertLayer(BertLayer):
                                                   init_weights=self.init_weights,
                                                   normalization=self.normalization,
                                                   normalization_constant=self.normalization_constant,
+                                                  orthogonal=self.orthogonal,
                                               )
 
 
@@ -208,6 +220,7 @@ class CustomAdapterBertEncoder(BertEncoder):
           init_weights,
           normalization=False,
           normalization_constant=None,
+          orthogonal=False,
           **kwargs):
         super().__init__(config)
         self.config = config
@@ -221,6 +234,7 @@ class CustomAdapterBertEncoder(BertEncoder):
         self.init_weights = init_weights
         self.normalization = normalization
         self.normalization_constant = normalization_constant
+        self.orthogonal = orthogonal
 
         self.layer = nn.ModuleList([CustomAdapterBertLayer(config=self.config,
                                                   num_rfs=self.num_rfs,
@@ -233,6 +247,7 @@ class CustomAdapterBertEncoder(BertEncoder):
                                                   init_weights=self.init_weights, 
                                                   normalization=self.normalization,
                                                   normalization_constant=self.normalization_constant,
+                                                  orthogonal=self.orthogonal,
                                                   ) for _ in range(config.num_hidden_layers)])
 
 class CustomAdapterBertModel(BertModel):
@@ -246,6 +261,7 @@ class CustomAdapterBertModel(BertModel):
           init_weights,
           normalization=False,
           normalization_constant=None,
+          orthogonal=False,
           **kwargs):
         super().__init__(config)
         self.config = config
@@ -271,6 +287,7 @@ class CustomAdapterBertModel(BertModel):
                                                   init_weights=self.init_weights,
                                                   normalization=self.normalization,
                                                   normalization_constant=self.normalization_constant,
+                                                  orthogonal=self.orthogonal,
                                                   )
 
 
@@ -285,8 +302,9 @@ class CustomBertForSequenceClassification(nn.Module):
           init_weights,
           normalization=False,
           normalization_constant=None,
-          model_name_or_path = 'bert-base-uncased'
-                 **kwargs):
+          model_name_or_path = 'bert-base-uncased',
+          orthogonal = False,
+          **kwargs):
         super().__init__()
         self.num_rfs = num_rfs
         self.A_fun = A_fun
@@ -301,6 +319,7 @@ class CustomBertForSequenceClassification(nn.Module):
         self.normalization = normalization
         self.normalization_constant = normalization_constant
         self.model_name_or_path = model_name_or_path
+        self.orthogonal = orthogonal
 
 
         self.bert = CustomAdapterBertModel.from_pretrained(self.model_name_or_path, config=self.config,
@@ -314,6 +333,7 @@ class CustomBertForSequenceClassification(nn.Module):
                                                   init_weights=self.init_weights,
                                                   normalization=self.normalization,
                                                   normalization_constant=self.normalization_constant,
+                                                  orthogonal=self.orthogonal,
                                                   )
         classifier_dropout = (
             config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob

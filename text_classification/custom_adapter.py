@@ -18,6 +18,7 @@ class CustomAdapter(nn.Module):
         init_weights ='mam', #bert or mam
         normalization=False,
         normalization_constant=None,
+        orthogonal=False,
         **kwargs
     ):
         super().__init__()
@@ -32,6 +33,9 @@ class CustomAdapter(nn.Module):
         self.down_sample = down_sample
         self.add_layer_norm_after = ln_after
         self.init_weights = init_weights
+        self.orthogonal = orthogonal
+        self.normalization = normalization
+        self.normalization_constant = normalization_constant
 
         # list for all modules of the adapter, passed into nn.Sequential()
         seq_list = []
@@ -57,14 +61,16 @@ class CustomAdapter(nn.Module):
           with torch.no_grad():
               nn.init.kaiming_uniform_(self.initial_weights.data, a=math.sqrt(5))
               self.initial_weights = self.initial_weights.to(self.model_device)
-        seq_list.append(NNK(self.initial_weights, self.A_fun, self.a_fun, self.xis, self.num_rfs, self.input_size, self.model_device, self.seed))
+        seq_list.append(NNK(self.initial_weights, self.A_fun, self.a_fun, self.xis, self.num_rfs, self.input_size, self.model_device, self.seed, \
+                            self.normalize, self.normalization_constant, self.orthogonal
+                            ))
         self.adapter_down = nn.Sequential(*seq_list)
 
         # Up projection to input size
         if self.down_sample is not None :
           self.adapter_up = nn.Linear(self.down_sample, self.input_size)
         else :
-          self.modulating_vector = torch.zeros(self.input_size).to(self.model_device)
+          self.modulating_vector = torch.zeros(self.input_size)
           self.modulating_vector = nn.Parameter(self.modulating_vector)
 
         # If we want to have a layer norm on output, we apply it later after a separate residual connection

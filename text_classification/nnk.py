@@ -56,7 +56,8 @@ def input_to_rfs_torch_vectorized(xw, AB_fun, ab_fun, xis, num_rfs, dim, device,
 
 
 class NNK(nn.Module) :
-  def __init__(self, input_weights, A_fun, a_fun, xis, num_rfs, dim, model_device, seed=0, normalize=False, normalization_constant=None):
+  def __init__(self, input_weights, A_fun, a_fun, xis, num_rfs, dim, model_device, seed=0, \
+               normalize=False, normalization_constant=None, orthogonal=False):
         super().__init__()
         self.input_weights = input_weights
         self.A_fun = A_fun
@@ -68,15 +69,19 @@ class NNK(nn.Module) :
         self.seed = seed
         self.normalize = normalize
         self.normalization_constant = normalization_constant
+        self.orthogonal = orthogonal
 
         self.weights = input_to_rfs_torch_vectorized(self.input_weights, self.A_fun, self.a_fun, self.xis, \
                                                      self.num_rfs, self.dim, self.model_device, self.seed,
-                                                     self.normalize, self.normalize_constant)
+                                                     self.normalize, self.normalize_constant, self.orthogonal)
         self.weights = nn.Parameter(self.weights)
         # TODO: ADD BIAS
 
   def forward(self, x):
-        output_x = input_to_rfs_torch_vectorized(x, self.A_fun, self.a_fun, self.xis, self.num_rfs, self.dim, self.model_device, self.seed)
+        output_x = input_to_rfs_torch_vectorized(x, self.A_fun, self.a_fun, self.xis, self.num_rfs, \
+                                                  self.dim, self.model_device, self.seed, self.normalize, \
+                                                    self.normalize_constant, self.orthogonal
+                                                    )
         return output_x @ self.weights.t()
 
 
