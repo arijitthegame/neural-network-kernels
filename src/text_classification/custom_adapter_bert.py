@@ -1,3 +1,6 @@
+import sys
+sys.path.append('/src/nnk/')
+
 import torch 
 from custom_adapter import CustomAdapter
 from torch import nn

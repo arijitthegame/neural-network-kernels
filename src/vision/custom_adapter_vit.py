@@ -1,5 +1,5 @@
 import sys
-sys.path.append(1, './text_classification')
+sys.path.append('/src/nnk/')
 from custom_adapter import CustomAdapter
 
 # add adapters to ViToutput and ViTlayer

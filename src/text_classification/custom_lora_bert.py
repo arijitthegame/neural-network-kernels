@@ -1,3 +1,6 @@
+import sys
+sys.path.append('/src/nnk/')
+
 from typing import Optional, Tuple
 import math
 import torch
