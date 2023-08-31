@@ -1,5 +1,5 @@
 import sys
-sys.path.append(1, './text_classification')
+sys.path.append('/src/nnk')
 from nnk import NNK
 
 from transformers import ViTModel, ViTForImageClassification, AutoConfig, ViTForImageClassification

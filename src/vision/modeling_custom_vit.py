@@ -1,3 +1,6 @@
+import sys
+sys.path.append('/src/nnk/')
+
 import collections.abc
 import math
 from typing import Dict, List, Optional, Set, Tuple, Union
@@ -25,7 +28,7 @@ from transformers.utils import (
 )
 from transformers import ViTConfig, ViTPreTrainedModel, ViTModel
 from transformers.models.vit.modeling_vit import ViTPooler
-from nnk import *
+
 
 logger = logging.get_logger(__name__)
 
