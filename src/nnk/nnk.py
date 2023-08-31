@@ -16,7 +16,7 @@ def torch_apply_along_axis(function, x, axis: int = 0):
 
 def input_to_rfs_torch_vectorized(xw, AB_fun, ab_fun, xis, num_rfs, dim, device, 
                                   seed=0, normalize=False, normalization_constant=None,
-                                  orthogonal=False):
+                                  orthogonal=False, proj_matrix=None):
     if normalize :
       if normalization_constant is None :
         xw = torch.nn.functional.normalize(xw)
@@ -26,17 +26,23 @@ def input_to_rfs_torch_vectorized(xw, AB_fun, ab_fun, xis, num_rfs, dim, device,
     ab_coeffs = torch_apply_along_axis(ab_fun, xis, 0)
     AB_coeffs = torch_apply_along_axis(AB_fun, xis, 0)
     torch.manual_seed(seed)
-    if device == 'cpu':
-      if orthogonal is False :
-        gs = torch.rand(size=(num_rfs, dim))
-      else : 
-        gs = gaussian_orthogonal_random_matrix(num_rfs, dim, scaling = 0, device = 'cpu')
-    else :
-      if orthogonal is False :
-        gs = torch.rand(size=(num_rfs, dim)).cuda()
+    
+    if proj_matrix is None:
+      if device == 'cpu':
+        if orthogonal is False :
+          gs = torch.rand(size=(num_rfs, dim))
+        else : 
+          gs = gaussian_orthogonal_random_matrix(num_rfs, dim, scaling = 0, device = 'cpu')
       else :
-        gs = gaussian_orthogonal_random_matrix(num_rfs, dim, scaling = 0, device = 'cuda')
-
+        if orthogonal is False :
+          gs = torch.rand(size=(num_rfs, dim)).cuda()
+        else :
+          gs = gaussian_orthogonal_random_matrix(num_rfs, dim, scaling = 0, device = 'cuda')
+    else :
+      if device == 'cpu':
+        gs = proj_matrix
+      else :
+         gs = proj_matrix.cuda()
     renorm_gs = (ab_coeffs * gs.t()).t()
     if len(xw.shape) == 2 :
       dot_products = torch.einsum('ij,jk->ik', xw, renorm_gs.t())
@@ -57,7 +63,7 @@ def input_to_rfs_torch_vectorized(xw, AB_fun, ab_fun, xis, num_rfs, dim, device,
 
 class NNK(nn.Module) :
   def __init__(self, input_weights, A_fun, a_fun, xis, num_rfs, dim, model_device, seed=0, \
-               normalize=False, normalization_constant=None, orthogonal=False):
+               normalize=False, normalization_constant=None, orthogonal=False, proj_matrix=None):
         super().__init__()
         self.input_weights = input_weights
         self.A_fun = A_fun
@@ -70,17 +76,21 @@ class NNK(nn.Module) :
         self.normalize = normalize
         self.normalization_constant = normalization_constant
         self.orthogonal = orthogonal
+        self.proj_matrix = proj_matrix
 
-        self.weights = input_to_rfs_torch_vectorized(self.input_weights, self.A_fun, self.a_fun, self.xis, \
-                                                     self.num_rfs, self.dim, self.model_device, self.seed,
-                                                     self.normalize, self.normalize_constant, self.orthogonal)
+        self.weights = input_to_rfs_torch_vectorized(xw=self.input_weights, AB_fun=self.A_fun, ab_fun=self.a_fun, xis=self.xis, \
+                                                     num_rfs=self.num_rfs, dim=self.dim, device=self.model_device, seed=self.seed,
+                                                     normalize=self.normalize, normalize_constant=self.normalize_constant, \
+                                                     orthogonal=self.orthogonal, proj_matrix=self.proj_matrix)
         self.weights = nn.Parameter(self.weights)
         # TODO: ADD BIAS
 
   def forward(self, x):
-        output_x = input_to_rfs_torch_vectorized(x, self.A_fun, self.a_fun, self.xis, self.num_rfs, \
-                                                  self.dim, self.model_device, self.seed, self.normalize, \
-                                                    self.normalize_constant, self.orthogonal
+        output_x = input_to_rfs_torch_vectorized(xw=x, AB_fun=self.A_fun, ab_fun=self.a_fun, xis=self.xis, \
+                                                     num_rfs=self.num_rfs, dim=self.dim, device=self.model_device, 
+                                                     seed=self.seed, normalize=self.normalize, \
+                                                     normalize_constant=self.normalize_constant, \
+                                                     orthogonal=self.orthogonal, proj_matrix=self.proj_matrix 
                                                     )
         return output_x @ self.weights.t()
 

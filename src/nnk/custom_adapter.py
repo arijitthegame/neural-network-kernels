@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from nnk import NNK
+from performer_attention import gaussian_orthogonal_random_matrix
 
 class CustomAdapter(nn.Module):
   def __init__(
@@ -36,7 +37,13 @@ class CustomAdapter(nn.Module):
         self.orthogonal = orthogonal
         self.normalization = normalization
         self.normalization_constant = normalization_constant
+        self.num_rfs = num_rfs
 
+        if self.orthogonal is False :
+          self.proj_matrix = torch.rand(size=(self.num_rfs, self.input_size)).to(self.model_device)
+        else :
+          self.proj_matrix = gaussian_orthogonal_random_matrix(self.num_rfs, self.input_size, scaling = 0, device = self.model_device)
+           
         # list for all modules of the adapter, passed into nn.Sequential()
         seq_list = []
 
@@ -48,7 +55,7 @@ class CustomAdapter(nn.Module):
         # print(self.init_weights)
 
         # if a downsample size is not passed, we just half the size of the original input
-        self.num_rfs = num_rfs
+        
 
         if self.down_sample is None :
           self.initial_weights = torch.empty(self.input_size, self.input_size)
@@ -62,7 +69,7 @@ class CustomAdapter(nn.Module):
               nn.init.kaiming_uniform_(self.initial_weights.data, a=math.sqrt(5))
               self.initial_weights = self.initial_weights.to(self.model_device)
         seq_list.append(NNK(self.initial_weights, self.A_fun, self.a_fun, self.xis, self.num_rfs, self.input_size, self.model_device, self.seed, \
-                            self.normalize, self.normalization_constant, self.orthogonal
+                            self.normalize, self.normalization_constant, self.orthogonal, self.proj_matrix
                             ))
         self.adapter_down = nn.Sequential(*seq_list)
 
