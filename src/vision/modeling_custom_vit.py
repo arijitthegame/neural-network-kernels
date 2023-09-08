@@ -1,5 +1,6 @@
 import sys
-sys.path.append('/src/nnk/')
+
+sys.path.append("/src/nnk/")
 
 import collections.abc
 import math
@@ -18,7 +19,10 @@ from transformers.modeling_outputs import (
     MaskedImageModelingOutput,
 )
 from transformers.modeling_utils import PreTrainedModel
-from transformers.pytorch_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from transformers.pytorch_utils import (
+    find_pruneable_heads_and_indices,
+    prune_linear_layer,
+)
 from transformers.utils import (
     add_code_sample_docstrings,
     add_start_docstrings,
@@ -73,15 +77,22 @@ VIT_INPUTS_DOCSTRING = r"""
             Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
 """
 
+
 class ViTForCustomImageClassification(ViTPreTrainedModel):
     def __init__(self, config: ViTConfig) -> None:
         super().__init__(config)
 
         self.num_labels = config.num_labels
-        self.vit = ViTModel(config, add_pooling_layer=True) #the og image classification model do not use the pooling layer
+        self.vit = ViTModel(
+            config, add_pooling_layer=True
+        )  # the og image classification model do not use the pooling layer
 
         # Classifier head
-        self.classifier = nn.Linear(config.hidden_size, config.num_labels) if config.num_labels > 0 else nn.Identity()
+        self.classifier = (
+            nn.Linear(config.hidden_size, config.num_labels)
+            if config.num_labels > 0
+            else nn.Identity()
+        )
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -109,7 +120,9 @@ class ViTForCustomImageClassification(ViTPreTrainedModel):
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         outputs = self.vit(
             pixel_values,
@@ -120,7 +133,7 @@ class ViTForCustomImageClassification(ViTPreTrainedModel):
             return_dict=return_dict,
         )
 
-        sequence_output = outputs['pooler_output']
+        sequence_output = outputs["pooler_output"]
 
         logits = self.classifier(sequence_output)
 
@@ -131,7 +144,9 @@ class ViTForCustomImageClassification(ViTPreTrainedModel):
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
+                elif self.num_labels > 1 and (
+                    labels.dtype == torch.long or labels.dtype == torch.int
+                ):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"
@@ -161,9 +176,15 @@ class ViTForCustomImageClassification(ViTPreTrainedModel):
         )
 
 
-
 class LinearViTForImageClassification(ViTPreTrainedModel):
-    def __init__(self, config: ViTConfig, A_fun: callable, a_fun: callable, xis: callable, num_rfs: int) -> None:
+    def __init__(
+        self,
+        config: ViTConfig,
+        A_fun: callable,
+        a_fun: callable,
+        xis: callable,
+        num_rfs: int,
+    ) -> None:
         super().__init__(config, A_fun, a_fun, xis, num_rfs)
 
         self.num_labels = config.num_labels
@@ -171,21 +192,28 @@ class LinearViTForImageClassification(ViTPreTrainedModel):
         self.a_fun = a_fun
         self.xis = xis
         self.num_rfs = num_rfs
-        self.vit = ViTModel(config, add_pooling_layer=False) #the og image classification model do not use the pooling layer   
-        self.pooler = ViTPooler(config) #add pooling layer
+        self.vit = ViTModel(
+            config, add_pooling_layer=False
+        )  # the og image classification model do not use the pooling layer
+        self.pooler = ViTPooler(config)  # add pooling layer
         # Classifier head
-        self.classifier = nn.Linear(config.hidden_size, config.num_labels) if config.num_labels > 0 else nn.Identity()
-        
+        self.classifier = (
+            nn.Linear(config.hidden_size, config.num_labels)
+            if config.num_labels > 0
+            else nn.Identity()
+        )
+
         self.post_init()
         # Initialize weights and apply final processing
         # get weights and bias to linearize
         self.w = self.pooler.dense.weight
         # the bias in the pooler layer is the 0 vector so going to ignore the first pass
-        self.output_rfs = input_to_rfs_torch(self.w, A_fun, a_fun, xis, num_rfs, self.w.shape[1])
+        self.output_rfs = input_to_rfs_torch(
+            self.w, A_fun, a_fun, xis, num_rfs, self.w.shape[1]
+        )
         # TO CHECK: Might be issues with some gradient hooks
         self.output_rfs = nn.Parameter(self.output_rfs)
-        # linearize the pooler layer 
-
+        # linearize the pooler layer
 
     @add_start_docstrings_to_model_forward(VIT_INPUTS_DOCSTRING)
     @add_code_sample_docstrings(
@@ -211,7 +239,9 @@ class LinearViTForImageClassification(ViTPreTrainedModel):
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         outputs = self.vit(
             pixel_values,
@@ -222,7 +252,14 @@ class LinearViTForImageClassification(ViTPreTrainedModel):
             return_dict=return_dict,
         )
         first_token_tensor = outputs[:, 0]
-        x_rfs = input_to_rfs_torch(first_token_tensor, self.A_fun, self.a_fun, self.xis, self.num_rfs, first_token_tensor.shape[1])
+        x_rfs = input_to_rfs_torch(
+            first_token_tensor,
+            self.A_fun,
+            self.a_fun,
+            self.xis,
+            self.num_rfs,
+            first_token_tensor.shape[1],
+        )
         sequence_output = x_rfs @ self.output_rfs.t()
         # compute the linearized pooling layer
         logits = self.classifier(sequence_output)
@@ -234,7 +271,9 @@ class LinearViTForImageClassification(ViTPreTrainedModel):
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
+                elif self.num_labels > 1 and (
+                    labels.dtype == torch.long or labels.dtype == torch.int
+                ):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"

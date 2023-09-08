@@ -1,5 +1,6 @@
 import sys
-sys.path.append('./nnk/')
+
+sys.path.append("./nnk/")
 
 import torch
 import torch.nn as nn
@@ -12,17 +13,20 @@ from custom_adapter import CustomReluAdapter
 
 
 class ReluAdapterBertSelfOutput(nn.Module):
-    def __init__(self, config, num_rfs,
-              model_device,
-              seed,
-              down_sample,
-              init_weights,
-              normalize,
-              normalization_constant,
-              orthogonal,
-              constant,
-              **kwargs
-                 ):
+    def __init__(
+        self,
+        config,
+        num_rfs,
+        model_device,
+        seed,
+        down_sample,
+        init_weights,
+        normalize,
+        normalization_constant,
+        orthogonal,
+        constant,
+        **kwargs
+    ):
         super().__init__()
 
         self.config = config
@@ -38,28 +42,35 @@ class ReluAdapterBertSelfOutput(nn.Module):
 
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.mh_adapter = CustomReluAdapter(input_size=config.hidden_size, num_rfs=self.num_rfs,
-                              model_device=self.model_device,
-                              seed=self.seed,
-                              down_sample = self.down_sample,
-                              init_weights = self.init_weights,
-                              normalize = self.normalize,
-                              normalization_constant = self.normalization_constant,
-                              orthogonal = self.orthogonal,
-                              constant = self.constant
+        self.mh_adapter = CustomReluAdapter(
+            input_size=config.hidden_size,
+            num_rfs=self.num_rfs,
+            model_device=self.model_device,
+            seed=self.seed,
+            down_sample=self.down_sample,
+            init_weights=self.init_weights,
+            normalize=self.normalize,
+            normalization_constant=self.normalization_constant,
+            orthogonal=self.orthogonal,
+            constant=self.constant,
         )
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, hidden_states: torch.Tensor, input_tensor: torch.Tensor
+    ) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.mh_adapter(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
-    
+
 
 class ReluAdapterBertOutput(nn.Module):
-    def __init__(self, config, num_rfs,
+    def __init__(
+        self,
+        config,
+        num_rfs,
         model_device,
         seed,
         down_sample,
@@ -67,8 +78,9 @@ class ReluAdapterBertOutput(nn.Module):
         normalize,
         normalization_constant,
         orthogonal,
-                 constant,
-        **kwargs):
+        constant,
+        **kwargs
+    ):
         super().__init__()
         self.config = config
         self.num_rfs = num_rfs
@@ -83,19 +95,23 @@ class ReluAdapterBertOutput(nn.Module):
 
         self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
         self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.output_adapter = CustomReluAdapter(input_size=config.hidden_size, num_rfs=self.num_rfs,
-        model_device=self.model_device,
-        seed=self.seed,
-        down_sample = self.down_sample,
-        init_weights = self.init_weights,
-        normalize = self.normalize,
-        normalization_constant = self.normalization_constant,
-        orthogonal = self.orthogonal,
-        constant = self.constant
+        self.output_adapter = CustomReluAdapter(
+            input_size=config.hidden_size,
+            num_rfs=self.num_rfs,
+            model_device=self.model_device,
+            seed=self.seed,
+            down_sample=self.down_sample,
+            init_weights=self.init_weights,
+            normalize=self.normalize,
+            normalization_constant=self.normalization_constant,
+            orthogonal=self.orthogonal,
+            constant=self.constant,
         )
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(self, hidden_states: torch.Tensor, input_tensor: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, hidden_states: torch.Tensor, input_tensor: torch.Tensor
+    ) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
         hidden_states = self.output_adapter(hidden_states)
@@ -104,17 +120,21 @@ class ReluAdapterBertOutput(nn.Module):
 
 
 class ReluAdapterBertAttention(BertAttention):
-    def __init__(self, config, num_rfs,
-          model_device,
-          seed,
-          down_sample,
-          init_weights,
-                 normalize,
+    def __init__(
+        self,
+        config,
+        num_rfs,
+        model_device,
+        seed,
+        down_sample,
+        init_weights,
+        normalize,
         normalization_constant,
         orthogonal,
-                                  constant,
-          position_embedding_type=None,
-          **kwargs):
+        constant,
+        position_embedding_type=None,
+        **kwargs
+    ):
         super().__init__(config)
 
         self.config = config
@@ -129,30 +149,35 @@ class ReluAdapterBertAttention(BertAttention):
         self.position_embedding_type = position_embedding_type
         self.constant = constant
 
-        self.output = ReluAdapterBertSelfOutput(config=self.config,
-                                                  num_rfs=self.num_rfs,
-                                                  model_device=self.model_device,
-                                                  seed=self.seed,
-                                                  down_sample=self.down_sample,
-                                                  init_weights=self.init_weights,
-                                                  normalize = self.normalize,
-                                                  normalization_constant = self.normalization_constant,
-                                                    orthogonal = self.orthogonal,
-                                                  constant = self.constant
-                                                  )
+        self.output = ReluAdapterBertSelfOutput(
+            config=self.config,
+            num_rfs=self.num_rfs,
+            model_device=self.model_device,
+            seed=self.seed,
+            down_sample=self.down_sample,
+            init_weights=self.init_weights,
+            normalize=self.normalize,
+            normalization_constant=self.normalization_constant,
+            orthogonal=self.orthogonal,
+            constant=self.constant,
+        )
 
 
 class ReluAdapterBertLayer(BertLayer):
-    def __init__(self, config, num_rfs,
-          model_device,
-          seed,
-          down_sample,
-          init_weights,
-                 normalize,
+    def __init__(
+        self,
+        config,
+        num_rfs,
+        model_device,
+        seed,
+        down_sample,
+        init_weights,
+        normalize,
         normalization_constant,
         orthogonal,
-                 constant,
-                 **kwargs):
+        constant,
+        **kwargs
+    ):
         super().__init__(config)
         self.config = config
         self.num_rfs = num_rfs
@@ -165,42 +190,48 @@ class ReluAdapterBertLayer(BertLayer):
         self.orthogonal = orthogonal
         self.constant = constant
 
-        self.attention = ReluAdapterBertAttention(config=self.config,
-                                                  num_rfs=self.num_rfs,
-                                                  model_device=self.model_device,
-                                                  seed=self.seed,
-                                                  down_sample=self.down_sample,
-                                                  init_weights=self.init_weights,
-                                                    normalize=self.normalize,
-                                                    normalization_constant=self.normalization_constant,
-                                                    orthogonal=self.orthogonal,
-                                                    constant=self.constant,
-                                                    )
-        self.output = ReluAdapterBertOutput(config=self.config,
-                                                  num_rfs=self.num_rfs,
-                                                  model_device=self.model_device,
-                                                  seed=self.seed,
-                                                  down_sample=self.down_sample,
-                                                  init_weights=self.init_weights,
-                                              normalize=self.normalize,
-                                                    normalization_constant=self.normalization_constant,
-                                                    orthogonal=self.orthogonal,
-                                              constant=self.constant
-                                              )
+        self.attention = ReluAdapterBertAttention(
+            config=self.config,
+            num_rfs=self.num_rfs,
+            model_device=self.model_device,
+            seed=self.seed,
+            down_sample=self.down_sample,
+            init_weights=self.init_weights,
+            normalize=self.normalize,
+            normalization_constant=self.normalization_constant,
+            orthogonal=self.orthogonal,
+            constant=self.constant,
+        )
+        self.output = ReluAdapterBertOutput(
+            config=self.config,
+            num_rfs=self.num_rfs,
+            model_device=self.model_device,
+            seed=self.seed,
+            down_sample=self.down_sample,
+            init_weights=self.init_weights,
+            normalize=self.normalize,
+            normalization_constant=self.normalization_constant,
+            orthogonal=self.orthogonal,
+            constant=self.constant,
+        )
 
 
 class ReluAdapterBertEncoder(BertEncoder):
-  # note this custom BERT do not support gradient checkpointing
-    def __init__(self, config, num_rfs,
-          model_device,
-          seed,
-          down_sample,
-          init_weights,
-                 normalize,
+    # note this custom BERT do not support gradient checkpointing
+    def __init__(
+        self,
+        config,
+        num_rfs,
+        model_device,
+        seed,
+        down_sample,
+        init_weights,
+        normalize,
         normalization_constant,
         orthogonal,
-                 constant,
-          **kwargs):
+        constant,
+        **kwargs
+    ):
         super().__init__(config)
         self.config = config
         self.num_rfs = num_rfs
@@ -213,28 +244,40 @@ class ReluAdapterBertEncoder(BertEncoder):
         self.orthogonal = orthogonal
         self.constant = constant
 
-        self.layer = nn.ModuleList([ReluAdapterBertLayer(config=self.config,
-                                                  num_rfs=self.num_rfs,
-                                                  model_device=self.model_device,
-                                                  seed=self.seed,
-                                                  down_sample=self.down_sample,
-                                                  init_weights=self.init_weights,
-                                                  normalize=self.normalize,
-                                                  normalization_constant=self.normalization_constant,
-                                                  orthogonal=self.orthogonal,
-                                                           constant=self.constant) for _ in range(config.num_hidden_layers)])
+        self.layer = nn.ModuleList(
+            [
+                ReluAdapterBertLayer(
+                    config=self.config,
+                    num_rfs=self.num_rfs,
+                    model_device=self.model_device,
+                    seed=self.seed,
+                    down_sample=self.down_sample,
+                    init_weights=self.init_weights,
+                    normalize=self.normalize,
+                    normalization_constant=self.normalization_constant,
+                    orthogonal=self.orthogonal,
+                    constant=self.constant,
+                )
+                for _ in range(config.num_hidden_layers)
+            ]
+        )
+
 
 class ReluAdapterBertModel(BertModel):
-    def __init__(self, config, num_rfs,
-          model_device,
-          seed,
-          down_sample,
-          init_weights,
-                 normalize,
+    def __init__(
+        self,
+        config,
+        num_rfs,
+        model_device,
+        seed,
+        down_sample,
+        init_weights,
+        normalize,
         normalization_constant,
         orthogonal,
-                 constant,
-                 **kwargs):
+        constant,
+        **kwargs
+    ):
         super().__init__(config)
         self.config = config
         self.num_rfs = num_rfs
@@ -247,30 +290,36 @@ class ReluAdapterBertModel(BertModel):
         self.orthogonal = orthogonal
         self.constant = constant
 
-        self.encoder = ReluAdapterBertEncoder(config=self.config,
-                                                  num_rfs=self.num_rfs,
-                                                  model_device=self.model_device,
-                                                  seed=self.seed,
-                                                  down_sample=self.down_sample,
-                                                  init_weights=self.init_weights,
-                                                normalize=self.normalize,
-                                                    normalization_constant=self.normalization_constant,
-                                                    orthogonal=self.orthogonal,
-                                                constant=self.constant)
-        
+        self.encoder = ReluAdapterBertEncoder(
+            config=self.config,
+            num_rfs=self.num_rfs,
+            model_device=self.model_device,
+            seed=self.seed,
+            down_sample=self.down_sample,
+            init_weights=self.init_weights,
+            normalize=self.normalize,
+            normalization_constant=self.normalization_constant,
+            orthogonal=self.orthogonal,
+            constant=self.constant,
+        )
+
 
 class ReluBertForSequenceClassification(nn.Module):
-    def __init__(self, config, num_rfs,
-          model_device,
-          seed,
-          down_sample,
-          init_weights,
-                 normalize,
+    def __init__(
+        self,
+        config,
+        num_rfs,
+        model_device,
+        seed,
+        down_sample,
+        init_weights,
+        normalize,
         normalization_constant,
-                 constant,
+        constant,
         orthogonal,
         model_name_or_path,
-                 **kwargs):
+        **kwargs
+    ):
         super().__init__()
         self.num_rfs = num_rfs
         self.model_device = model_device
@@ -285,18 +334,23 @@ class ReluBertForSequenceClassification(nn.Module):
         self.constant = constant
         self.model_name_or_path = model_name_or_path
 
-        self.bert = ReluAdapterBertModel.from_pretrained(self.model_name_or_path, config=self.config,
-                                                  num_rfs=self.num_rfs,
-                                                  model_device=self.model_device,
-                                                  seed=self.seed,
-                                                  down_sample=self.down_sample,
-                                                  init_weights=self.init_weights,
-                                                           normalize=self.normalize,
-                                                    normalization_constant=self.normalization_constant,
-                                                    orthogonal=self.orthogonal,
-                                                           constant=self.constant)
+        self.bert = ReluAdapterBertModel.from_pretrained(
+            self.model_name_or_path,
+            config=self.config,
+            num_rfs=self.num_rfs,
+            model_device=self.model_device,
+            seed=self.seed,
+            down_sample=self.down_sample,
+            init_weights=self.init_weights,
+            normalize=self.normalize,
+            normalization_constant=self.normalization_constant,
+            orthogonal=self.orthogonal,
+            constant=self.constant,
+        )
         classifier_dropout = (
-            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
+            config.classifier_dropout
+            if config.classifier_dropout is not None
+            else config.hidden_dropout_prob
         )
         self.dropout = nn.Dropout(classifier_dropout)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
@@ -306,16 +360,16 @@ class ReluBertForSequenceClassification(nn.Module):
 
     def forward(
         self,
-        input_ids = None,
-        attention_mask = None,
-        token_type_ids = None,
-        position_ids = None,
-        head_mask = None,
-        inputs_embeds = None,
-        labels = None,
-        output_attentions = None,
-        output_hidden_states = None,
-        return_dict = None,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
     ):
         r"""
         labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
@@ -323,7 +377,9 @@ class ReluBertForSequenceClassification(nn.Module):
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         outputs = self.bert(
             input_ids,
@@ -347,7 +403,9 @@ class ReluBertForSequenceClassification(nn.Module):
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
+                elif self.num_labels > 1 and (
+                    labels.dtype == torch.long or labels.dtype == torch.int
+                ):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"

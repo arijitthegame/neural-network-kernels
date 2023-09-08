@@ -1,24 +1,43 @@
 import sys
-sys.path.append('/src/nnk/')
+
+sys.path.append("/src/nnk/")
 
 from typing import Optional, Tuple
 import math
 import torch
 from torch import nn
 
-from transformers import BertLayer, BertModel, BertPreTrainedModel, BertForSequenceClassification
+from transformers import (
+    BertLayer,
+    BertModel,
+    BertPreTrainedModel,
+    BertForSequenceClassification,
+)
 from transformers.models.bert.modeling_bert import BertAttention, BertEncoder
 
 
-
 class CustomLoraBertSelfAttention(nn.Module):
-    def __init__(self, config, A_fun, a_fun, xis, num_rfs, model_device, seed=0, 
-                 normalize=False, normalization_constant=None, orthogonal=False, 
-                 position_embedding_type=None, target_k = True, init_weights='bert',
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        config,
+        A_fun,
+        a_fun,
+        xis,
+        num_rfs,
+        model_device,
+        seed=0,
+        normalize=False,
+        normalization_constant=None,
+        orthogonal=False,
+        position_embedding_type=None,
+        target_k=True,
+        init_weights="bert",
+        **kwargs,
+    ):
         super().__init__()
-        if config.hidden_size % config.num_attention_heads != 0 and not hasattr(config, "embedding_size"):
+        if config.hidden_size % config.num_attention_heads != 0 and not hasattr(
+            config, "embedding_size"
+        ):
             raise ValueError(
                 f"The hidden size ({config.hidden_size}) is not a multiple of the number of attention "
                 f"heads ({config.num_attention_heads})"
@@ -46,60 +65,119 @@ class CustomLoraBertSelfAttention(nn.Module):
 
         self.initial_query_weights = torch.empty(config.hidden_size, config.hidden_size)
         self.initial_value_weights = torch.empty(config.hidden_size, config.hidden_size)
-        if self.target_k :
-          self.initial_key_weights = torch.empty(config.hidden_size, config.hidden_size)
+        if self.target_k:
+            self.initial_key_weights = torch.empty(
+                config.hidden_size, config.hidden_size
+            )
 
-        if self.init_weights == 'bert':
-          self.initial_query_weights = self.initial_query_weights.data.normal_(mean=0.0, std=0.02).to(self.model_device)
-          self.initial_value_weights = self.initial_value_weights.data.normal_(mean=0.0, std=0.02).to(self.model_device)
-          if self.target_k : 
-            self.initial_key_weights = self.initial_key_weights.data.normal_(mean=0.0, std=0.02).to(self.model_device)
+        if self.init_weights == "bert":
+            self.initial_query_weights = self.initial_query_weights.data.normal_(
+                mean=0.0, std=0.02
+            ).to(self.model_device)
+            self.initial_value_weights = self.initial_value_weights.data.normal_(
+                mean=0.0, std=0.02
+            ).to(self.model_device)
+            if self.target_k:
+                self.initial_key_weights = self.initial_key_weights.data.normal_(
+                    mean=0.0, std=0.02
+                ).to(self.model_device)
 
-        elif self.init_weights == 'mam':
-          with torch.no_grad():
-              nn.init.kaiming_uniform_(self.initial_query_weights.data, a=math.sqrt(5))
-              self.initial_query_weights = self.initial_query_weights.to(self.model_device)
-              nn.init.kaiming_uniform_(self.initial_value_weights.data, a=math.sqrt(5))
-              self.initial_value_weights = self.initial_value_weights.to(self.model_device)
-              if self.target_k : 
-                nn.init.kaiming_uniform_(self.initial_key_weights.data, a=math.sqrt(5))
-                self.initial_key_weights = self.initial_key_weights.to(self.model_device)
+        elif self.init_weights == "mam":
+            with torch.no_grad():
+                nn.init.kaiming_uniform_(
+                    self.initial_query_weights.data, a=math.sqrt(5)
+                )
+                self.initial_query_weights = self.initial_query_weights.to(
+                    self.model_device
+                )
+                nn.init.kaiming_uniform_(
+                    self.initial_value_weights.data, a=math.sqrt(5)
+                )
+                self.initial_value_weights = self.initial_value_weights.to(
+                    self.model_device
+                )
+                if self.target_k:
+                    nn.init.kaiming_uniform_(
+                        self.initial_key_weights.data, a=math.sqrt(5)
+                    )
+                    self.initial_key_weights = self.initial_key_weights.to(
+                        self.model_device
+                    )
 
-        else : 
-          raise ValueError('Unsupported initialization type')
+        else:
+            raise ValueError("Unsupported initialization type")
 
-        self.delta_query = NNK(self.initial_query_weights, self.A_fun, self.a_fun, self.xis, self.num_rfs, 
-                               config.hidden_size, self.model_device, self.seed, 
-                               self.normalize, self.normalization_constant, self.orthogonal
-                               )
-        self.modulating_query = nn.Parameter(torch.zeros(self.all_head_size), requires_grad=True)
-        self.delta_value = NNK(self.initial_value_weights, self.A_fun, self.a_fun, self.xis, self.num_rfs, 
-                               config.hidden_size, self.model_device, self.seed, 
-                               self.normalize, self.normalization_constant, self.orthogonal
-                               )
-        self.modulating_value = nn.Parameter(torch.zeros(self.all_head_size), requires_grad=True)
+        self.delta_query = NNK(
+            self.initial_query_weights,
+            self.A_fun,
+            self.a_fun,
+            self.xis,
+            self.num_rfs,
+            config.hidden_size,
+            self.model_device,
+            self.seed,
+            self.normalize,
+            self.normalization_constant,
+            self.orthogonal,
+        )
+        self.modulating_query = nn.Parameter(
+            torch.zeros(self.all_head_size), requires_grad=True
+        )
+        self.delta_value = NNK(
+            self.initial_value_weights,
+            self.A_fun,
+            self.a_fun,
+            self.xis,
+            self.num_rfs,
+            config.hidden_size,
+            self.model_device,
+            self.seed,
+            self.normalize,
+            self.normalization_constant,
+            self.orthogonal,
+        )
+        self.modulating_value = nn.Parameter(
+            torch.zeros(self.all_head_size), requires_grad=True
+        )
 
-        if self.target_k :
-          self.delta_key = NNK(self.initial_key_weights, self.A_fun, self.a_fun, self.xis, self.num_rfs, 
-                               config.hidden_size, self.model_device, self.seed, 
-                               self.normalize, self.normalization_constant, self.orthogonal
-                               )
-          self.modulating_key = nn.Parameter(torch.zeros(self.all_head_size), requires_grad=True)
-          
-        
+        if self.target_k:
+            self.delta_key = NNK(
+                self.initial_key_weights,
+                self.A_fun,
+                self.a_fun,
+                self.xis,
+                self.num_rfs,
+                config.hidden_size,
+                self.model_device,
+                self.seed,
+                self.normalize,
+                self.normalization_constant,
+                self.orthogonal,
+            )
+            self.modulating_key = nn.Parameter(
+                torch.zeros(self.all_head_size), requires_grad=True
+            )
 
         self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
         self.position_embedding_type = position_embedding_type or getattr(
             config, "position_embedding_type", "absolute"
         )
-        if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
+        if (
+            self.position_embedding_type == "relative_key"
+            or self.position_embedding_type == "relative_key_query"
+        ):
             self.max_position_embeddings = config.max_position_embeddings
-            self.distance_embedding = nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
+            self.distance_embedding = nn.Embedding(
+                2 * config.max_position_embeddings - 1, self.attention_head_size
+            )
 
         self.is_decoder = config.is_decoder
 
     def transpose_for_scores(self, x: torch.Tensor) -> torch.Tensor:
-        new_x_shape = x.size()[:-1] + (self.num_attention_heads, self.attention_head_size)
+        new_x_shape = x.size()[:-1] + (
+            self.num_attention_heads,
+            self.attention_head_size,
+        )
         x = x.view(new_x_shape)
         return x.permute(0, 2, 1, 3)
 
@@ -143,9 +221,9 @@ class CustomLoraBertSelfAttention(nn.Module):
 
             lora_value = self.delta_value(hidden_states) * self.modulating_value
             value_layer = value_layer + self.transpose_for_scores(lora_value)
-            if self.target_k :
-              lora_key = self.delta_key(hidden_states) * self.modulating_key
-              key_layer = key_layer + self.transpose_for_scores(lora_key)
+            if self.target_k:
+                lora_key = self.delta_key(hidden_states) * self.modulating_key
+                key_layer = key_layer + self.transpose_for_scores(lora_key)
 
         query_layer = self.transpose_for_scores(mixed_query_layer)
 
@@ -160,33 +238,54 @@ class CustomLoraBertSelfAttention(nn.Module):
             # if encoder bi-directional self-attention `past_key_value` is always `None`
             past_key_value = (key_layer, value_layer)
 
-        #TODO:
+        # TODO:
         # (query_layer,) = adjust_tensors_for_parallel(key_layer, query_layer)
 
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
 
-        if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
+        if (
+            self.position_embedding_type == "relative_key"
+            or self.position_embedding_type == "relative_key_query"
+        ):
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
             if use_cache:
-                position_ids_l = torch.tensor(key_length - 1, dtype=torch.long, device=hidden_states.device).view(
-                    -1, 1
-                )
+                position_ids_l = torch.tensor(
+                    key_length - 1, dtype=torch.long, device=hidden_states.device
+                ).view(-1, 1)
             else:
-                position_ids_l = torch.arange(query_length, dtype=torch.long, device=hidden_states.device).view(-1, 1)
-            position_ids_r = torch.arange(key_length, dtype=torch.long, device=hidden_states.device).view(1, -1)
+                position_ids_l = torch.arange(
+                    query_length, dtype=torch.long, device=hidden_states.device
+                ).view(-1, 1)
+            position_ids_r = torch.arange(
+                key_length, dtype=torch.long, device=hidden_states.device
+            ).view(1, -1)
             distance = position_ids_l - position_ids_r
 
-            positional_embedding = self.distance_embedding(distance + self.max_position_embeddings - 1)
-            positional_embedding = positional_embedding.to(dtype=query_layer.dtype)  # fp16 compatibility
+            positional_embedding = self.distance_embedding(
+                distance + self.max_position_embeddings - 1
+            )
+            positional_embedding = positional_embedding.to(
+                dtype=query_layer.dtype
+            )  # fp16 compatibility
 
             if self.position_embedding_type == "relative_key":
-                relative_position_scores = torch.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
+                relative_position_scores = torch.einsum(
+                    "bhld,lrd->bhlr", query_layer, positional_embedding
+                )
                 attention_scores = attention_scores + relative_position_scores
             elif self.position_embedding_type == "relative_key_query":
-                relative_position_scores_query = torch.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
-                relative_position_scores_key = torch.einsum("bhrd,lrd->bhlr", key_layer, positional_embedding)
-                attention_scores = attention_scores + relative_position_scores_query + relative_position_scores_key
+                relative_position_scores_query = torch.einsum(
+                    "bhld,lrd->bhlr", query_layer, positional_embedding
+                )
+                relative_position_scores_key = torch.einsum(
+                    "bhrd,lrd->bhlr", key_layer, positional_embedding
+                )
+                attention_scores = (
+                    attention_scores
+                    + relative_position_scores_query
+                    + relative_position_scores_key
+                )
 
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         if attention_mask is not None:
@@ -210,7 +309,9 @@ class CustomLoraBertSelfAttention(nn.Module):
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
         context_layer = context_layer.view(new_context_layer_shape)
 
-        outputs = (context_layer, attention_probs) if output_attentions else (context_layer,)
+        outputs = (
+            (context_layer, attention_probs) if output_attentions else (context_layer,)
+        )
 
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
@@ -218,10 +319,23 @@ class CustomLoraBertSelfAttention(nn.Module):
 
 
 class CustomLoraBertAttention(BertAttention):
-    def __init__(self, config, A_fun, a_fun, xis, num_rfs, model_device, seed=0, 
-                 normalize=False, normalization_constant=None, orthogonal=False, 
-                 position_embedding_type=None, target_k = True, init_weights='bert',
-                 **kwargs):
+    def __init__(
+        self,
+        config,
+        A_fun,
+        a_fun,
+        xis,
+        num_rfs,
+        model_device,
+        seed=0,
+        normalize=False,
+        normalization_constant=None,
+        orthogonal=False,
+        position_embedding_type=None,
+        target_k=True,
+        init_weights="bert",
+        **kwargs,
+    ):
         super().__init__(config)
         self.config = config
         self.A_fun = A_fun
@@ -237,18 +351,41 @@ class CustomLoraBertAttention(BertAttention):
         self.init_weights = init_weights
         self.position_embedding_type = position_embedding_type
 
-        self.self = CustomLoraBertSelfAttention(config=self.config, A_fun=self.A_fun, a_fun=self.a_fun, xis=self.xis, num_rfs=self.num_rfs, 
-                                                model_device=self.model_device, seed=self.seed, 
-                                                normalize=self.normalize, normalization_constant=self.normalization_constant, 
-                                                orthogonal=self.orthogonal, position_embedding_type=self.position_embedding_type, 
-                                                target_k = self.target_k, init_weights=self.init_weights,
-                                                **kwargs)
-        
+        self.self = CustomLoraBertSelfAttention(
+            config=self.config,
+            A_fun=self.A_fun,
+            a_fun=self.a_fun,
+            xis=self.xis,
+            num_rfs=self.num_rfs,
+            model_device=self.model_device,
+            seed=self.seed,
+            normalize=self.normalize,
+            normalization_constant=self.normalization_constant,
+            orthogonal=self.orthogonal,
+            position_embedding_type=self.position_embedding_type,
+            target_k=self.target_k,
+            init_weights=self.init_weights,
+            **kwargs,
+        )
+
+
 class CustomLoraBertLayer(BertLayer):
-    def __init__(self, config, A_fun, a_fun, xis, num_rfs, model_device, seed=0, 
-                 normalize=False, normalization_constant=None, orthogonal=False, 
-                 target_k = True, init_weights='bert',
-                 **kwargs):
+    def __init__(
+        self,
+        config,
+        A_fun,
+        a_fun,
+        xis,
+        num_rfs,
+        model_device,
+        seed=0,
+        normalize=False,
+        normalization_constant=None,
+        orthogonal=False,
+        target_k=True,
+        init_weights="bert",
+        **kwargs,
+    ):
         super().__init__(config)
         self.config = config
         self.A_fun = A_fun
@@ -264,18 +401,41 @@ class CustomLoraBertLayer(BertLayer):
         self.init_weights = init_weights
         self.position_embedding_type = config.position_embedding_type
 
-        self.attention = CustomLoraBertAttention(config=self.config, A_fun=self.A_fun, a_fun=self.a_fun, xis=self.xis, num_rfs=self.num_rfs, 
-                                                model_device=self.model_device, seed=self.seed, 
-                                                normalize=self.normalize, normalization_constant=self.normalization_constant, 
-                                                orthogonal=self.orthogonal, position_embedding_type=self.position_embedding_type, 
-                                                target_k = self.target_k, init_weights=self.init_weights,
-                                                **kwargs)
+        self.attention = CustomLoraBertAttention(
+            config=self.config,
+            A_fun=self.A_fun,
+            a_fun=self.a_fun,
+            xis=self.xis,
+            num_rfs=self.num_rfs,
+            model_device=self.model_device,
+            seed=self.seed,
+            normalize=self.normalize,
+            normalization_constant=self.normalization_constant,
+            orthogonal=self.orthogonal,
+            position_embedding_type=self.position_embedding_type,
+            target_k=self.target_k,
+            init_weights=self.init_weights,
+            **kwargs,
+        )
+
 
 class CustomLoraBertEncoder(BertEncoder):
-    def __init__(self, config, A_fun, a_fun, xis, num_rfs, model_device, seed=0, 
-                 normalize=False, normalization_constant=None, orthogonal=False, 
-                 target_k = True, init_weights='bert',
-                 **kwargs):
+    def __init__(
+        self,
+        config,
+        A_fun,
+        a_fun,
+        xis,
+        num_rfs,
+        model_device,
+        seed=0,
+        normalize=False,
+        normalization_constant=None,
+        orthogonal=False,
+        target_k=True,
+        init_weights="bert",
+        **kwargs,
+    ):
         super().__init__(config)
         self.config = config
         self.A_fun = A_fun
@@ -290,19 +450,46 @@ class CustomLoraBertEncoder(BertEncoder):
         self.target_k = target_k
         self.init_weights = init_weights
 
-        self.layer = nn.ModuleList([CustomLoraBertLayer(config=self.config, A_fun=self.A_fun, a_fun=self.a_fun, xis=self.xis, num_rfs=self.num_rfs, 
-                                                model_device=self.model_device, seed=self.seed, 
-                                                normalize=self.normalize, normalization_constant=self.normalization_constant, 
-                                                orthogonal=self.orthogonal,
-                                                target_k = self.target_k, init_weights=self.init_weights,
-                                                **kwargs) for _ in range(config.num_hidden_layers)]
-                                   )
+        self.layer = nn.ModuleList(
+            [
+                CustomLoraBertLayer(
+                    config=self.config,
+                    A_fun=self.A_fun,
+                    a_fun=self.a_fun,
+                    xis=self.xis,
+                    num_rfs=self.num_rfs,
+                    model_device=self.model_device,
+                    seed=self.seed,
+                    normalize=self.normalize,
+                    normalization_constant=self.normalization_constant,
+                    orthogonal=self.orthogonal,
+                    target_k=self.target_k,
+                    init_weights=self.init_weights,
+                    **kwargs,
+                )
+                for _ in range(config.num_hidden_layers)
+            ]
+        )
+
 
 class CustomLoraBertModel(BertModel):
-    def __init__(self, config, A_fun, a_fun, xis, num_rfs, model_device, seed=0, 
-                 normalize=False, normalization_constant=None, orthogonal=False, 
-                 target_k = True, init_weights='bert',
-                 add_pooling_layer=True, **kwargs):
+    def __init__(
+        self,
+        config,
+        A_fun,
+        a_fun,
+        xis,
+        num_rfs,
+        model_device,
+        seed=0,
+        normalize=False,
+        normalization_constant=None,
+        orthogonal=False,
+        target_k=True,
+        init_weights="bert",
+        add_pooling_layer=True,
+        **kwargs,
+    ):
         super().__init__(config)
         self.config = config
         self.A_fun = A_fun
@@ -317,27 +504,48 @@ class CustomLoraBertModel(BertModel):
         self.target_k = target_k
         self.init_weights = init_weights
 
+        self.encoder = CustomLoraBertEncoder(
+            config=self.config,
+            A_fun=self.A_fun,
+            a_fun=self.a_fun,
+            xis=self.xis,
+            num_rfs=self.num_rfs,
+            model_device=self.model_device,
+            seed=self.seed,
+            normalize=self.normalize,
+            normalization_constant=self.normalization_constant,
+            orthogonal=self.orthogonal,
+            target_k=self.target_k,
+            init_weights=self.init_weights,
+            **kwargs,
+        )
 
-        self.encoder = CustomLoraBertEncoder(config=self.config, A_fun=self.A_fun, a_fun=self.a_fun, xis=self.xis, num_rfs=self.num_rfs, 
-                                                model_device=self.model_device, seed=self.seed, 
-                                                normalize=self.normalize, normalization_constant=self.normalization_constant, 
-                                                orthogonal=self.orthogonal, 
-                                                target_k = self.target_k, init_weights=self.init_weights,
-                                                **kwargs)
 
 class CustomLoraBertForSequenceClassification(BertForSequenceClassification):
-    # You can initialize the classifier model like 
+    # You can initialize the classifier model like
     # config= AutoConfig.from_pretrained('bert-base-uncased')
-    # b = CustomLoraBertForSequenceClassification.from_pretrained('bert-base-uncased', config=config, A_fun=A_fun, a_fun=a_fun, xis=xis, num_rfs=num_rfs, model_device='cpu', seed=0, 
-#                  normalize=False, normalization_constant=None, orthogonal=False, 
-#                  target_k = True, init_weights='bert',
-#                  add_pooling_layer=True,
-            # )
+    # b = CustomLoraBertForSequenceClassification.from_pretrained('bert-base-uncased', config=config, A_fun=A_fun, a_fun=a_fun, xis=xis, num_rfs=num_rfs, model_device='cpu', seed=0,
+    #                  normalize=False, normalization_constant=None, orthogonal=False,
+    #                  target_k = True, init_weights='bert',
+    #                  add_pooling_layer=True,
+    # )
 
-    def __init__(self, config, A_fun, a_fun, xis, num_rfs, model_device, seed=0, 
-                 normalize=False, normalization_constant=None, orthogonal=False, 
-                 target_k = True, init_weights='bert',
-                 **kwargs):
+    def __init__(
+        self,
+        config,
+        A_fun,
+        a_fun,
+        xis,
+        num_rfs,
+        model_device,
+        seed=0,
+        normalize=False,
+        normalization_constant=None,
+        orthogonal=False,
+        target_k=True,
+        init_weights="bert",
+        **kwargs,
+    ):
         super().__init__(config)
         self.config = config
         self.A_fun = A_fun
@@ -353,10 +561,18 @@ class CustomLoraBertForSequenceClassification(BertForSequenceClassification):
         self.init_weights = init_weights
         self.num_labels = config.num_labels
 
-
-        self.bert = CustomLoraBertModel(config=self.config, A_fun=self.A_fun, a_fun=self.a_fun, xis=self.xis, num_rfs=self.num_rfs, 
-                                                model_device=self.model_device, seed=self.seed, 
-                                                normalize=self.normalize, normalization_constant=self.normalization_constant, 
-                                                orthogonal=self.orthogonal,
-                                                target_k = self.target_k, init_weights=self.init_weights,
-                                                **kwargs)
+        self.bert = CustomLoraBertModel(
+            config=self.config,
+            A_fun=self.A_fun,
+            a_fun=self.a_fun,
+            xis=self.xis,
+            num_rfs=self.num_rfs,
+            model_device=self.model_device,
+            seed=self.seed,
+            normalize=self.normalize,
+            normalization_constant=self.normalization_constant,
+            orthogonal=self.orthogonal,
+            target_k=self.target_k,
+            init_weights=self.init_weights,
+            **kwargs,
+        )
