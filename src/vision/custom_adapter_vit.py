@@ -1,6 +1,7 @@
 import sys
 
-sys.path.append("/src/nnk/")
+absolute_path = "/Users/arijitsehanobish/neural-network-kernels/src/nnk/"
+sys.path.insert(1, absolute_path)
 from custom_adapter import CustomAdapter
 
 # add adapters to ViToutput and ViTlayer
@@ -27,7 +28,7 @@ class CustomAdapterViTOutput(nn.Module):
         seed,
         down_sample,
         init_weights,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__()
         self.config = config
@@ -79,7 +80,7 @@ class CustomAdapterViTLayer(nn.Module):
         seed,
         down_sample,
         init_weights,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__()
 
@@ -171,7 +172,7 @@ class CustomAdapterViTEncoder(ViTEncoder):
         seed,
         down_sample,
         init_weights,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(config)
 
@@ -228,7 +229,7 @@ class CustomAdapterViTModel(ViTModel):
         init_weights,
         add_pooling_layer: bool = True,
         use_mask_token: bool = False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(config)
 
@@ -270,7 +271,8 @@ class CustomAdapterViTForImageClassification(ViTForImageClassification):
         down_sample,
         init_weights,
         add_pooling_layer: bool = False,
-        use_mask_token: bool = False**kwargs,
+        use_mask_token: bool = False,
+        **kwargs,
     ):
         super().__init__(config)
 

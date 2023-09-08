@@ -1,6 +1,9 @@
+import os
 import sys
 
-sys.path.append("/src/nnk/")
+absolute_path = "/Users/arijitsehanobish/neural-network-kernels/src/nnk/"
+sys.path.insert(1, absolute_path)
+
 from custom_adapter import CustomReluAdapter
 
 # add adapters to ViToutput and ViTlayer
