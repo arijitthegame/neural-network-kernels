@@ -1,6 +1,7 @@
 import sys
 
-sys.path.append("/src/nnk/")
+absolute_path = "/Users/arijitsehanobish/neural-network-kernels/src/nnk/"
+sys.path.insert(1, absolute_path)
 
 import torch
 from custom_adapter import CustomAdapter

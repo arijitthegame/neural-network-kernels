@@ -1,6 +1,7 @@
 import sys
 
-sys.path.append("./nnk/")
+absolute_path = "/Users/arijitsehanobish/neural-network-kernels/src/nnk/"
+sys.path.insert(1, absolute_path)
 
 import torch
 import torch.nn as nn
