@@ -61,6 +61,35 @@ def input_to_rfs_torch_vectorized(xw, AB_fun, ab_fun, xis, num_rfs, dim, device,
     return (1.0 / math.sqrt(num_rfs)) * AB_coeffs * torch.exp(diff_vector)
 
 
+def phi_relu_mapping_torch(xw, num_rand_features, dim=None, seed=0, device='cpu',
+                           proj_matrix=None, constant=0, orthogonal=False,
+                           normalize=False, normalization_constant=None
+                           ):
+  # constant can be used to allow for some negative features if needed. 
+  if normalize :
+    if normalization_constant is None :
+        xw = torch.nn.functional.normalize(xw)
+    else :
+        xw = normalization_constant*torch.nn.functional.normalize(xw)
+
+  if proj_matrix is None :
+    torch.manual_seed(seed)
+    if orthogonal :
+      gs = gaussian_orthogonal_random_matrix(num_rand_features, dim, scaling = 0, device = device)
+    else :
+      gs = torch.rand(num_rand_features, dim).to(device) # (8,32)
+
+  else :
+    gs = proj_matrix.to(device)
+  if len(xw.shape) == 2 :
+      dot_products = torch.einsum('ij,jk->ik', xw, gs.t())
+  elif len(xw.shape) == 3:
+      dot_products = torch.einsum('bij,jk->bik', xw, gs.t())
+  else :
+      raise ValueError("Unsuported Tensor shape")
+  return (1.0 / math.sqrt(num_rand_features)) * torch.maximum(dot_products, constant*torch.ones_like(dot_products))
+
+
 class NNK(nn.Module) :
   def __init__(self, input_weights, A_fun, a_fun, xis, num_rfs, dim, model_device, seed=0, \
                normalize=False, normalization_constant=None, orthogonal=False, proj_matrix=None):
@@ -95,3 +124,36 @@ class NNK(nn.Module) :
         return output_x @ self.weights.t()
 
 
+class NNK_Relu(nn.Module) :
+  def __init__(self, input_weights, num_rfs, dim, model_device, seed=0,
+               normalize=False, normalization_constant=None,
+               orthogonal=False, constant=0):
+        super().__init__()
+        self.input_weights = input_weights
+        self.num_rfs = num_rfs
+        self.dim = dim
+        self.model_device = model_device
+        self.seed = seed
+        self.normalize = normalize
+        self.normalization_constant = normalization_constant
+        self.orthogonal = orthogonal
+        self.constant = constant
+        if self.orthogonal :
+          self.projection_matrix = gaussian_orthogonal_random_matrix(self.num_rfs, self.dim, scaling = 0, device = self.model_device)
+        else :
+          self.projection_matrix = torch.rand(self.num_rfs, self.dim).to(self.model_device)
+
+        self.weights = phi_relu_mapping_torch(xw=self.input_weights, num_rand_features=self.num_rfs, \
+                                                     dim=self.dim, device=self.model_device, seed=self.seed, \
+                                                     normalize=self.normalize, normalization_constant=self.normalization_constant,
+                                              orthogonal=self.orthogonal, constant=self.constant, proj_matrix=self.projection_matrix
+                                                     )
+        self.weights = nn.Parameter(self.weights)
+
+  def forward(self, x):
+        output_x = phi_relu_mapping_torch(xw=x, num_rand_features=self.num_rfs, \
+                                                     dim=self.dim, device=self.model_device, seed=self.seed, \
+                                                     normalize=self.normalize, normalization_constant=self.normalization_constant,
+                                              orthogonal=self.orthogonal, constant=self.constant, proj_matrix=self.projection_matrix
+                                                 )
+        return output_x @ self.weights.t()
