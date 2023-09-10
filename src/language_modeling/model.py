@@ -98,11 +98,11 @@ class ReluNNKMLP(nn.Module):
         if config.down_sample : 
             self.c_proj  = nn.Linear(4 * config.n_embd, config.n_embd)
             # define some weights 
-            self.input_weights = torch.empty(config.n_embd, 4*config.n_embd) 
-            torch.nn.init.normal_(self.input_weights.weight, mean=0.0, std=0.02) #Check TODO#
+            self.input_weights = torch.empty(4*config.n_embd, config.n_embd) 
+            torch.nn.init.normal_(self.input_weights, mean=0.0, std=0.02) 
             self.c_fc = NNK_Relu(input_weights,
                                 num_rfs=config.num_rfs,
-                                dim=4*config.n_embd, #check TODO:
+                                dim=config.n_embd, 
                                 model_device=config.device,
                                 seed=config.seed,
                                 normalize=config.normalize,
@@ -111,24 +111,25 @@ class ReluNNKMLP(nn.Module):
                                 constant=config.constant)
         else : 
             self.c_proj = nn.Identity()
-            self.input_weights = torch.empty(4*config.n_embd, config.n_embd) 
-            torch.nn.init.normal_(self.input_weights.weight, mean=0.0, std=0.02) #Check TODO#
+            self.input_weights = torch.empty(config.n_embd, config.n_embd) 
+            torch.nn.init.normal_(self.input_weights, mean=0.0, std=0.02) 
             self.c_fc = NNK_Relu(input_weights,
                                 num_rfs=config.num_rfs,
-                                dim=config.n_embd, #check TODO:
+                                dim=config.n_embd, 
                                 model_device=config.device,
                                 seed=config.seed,
                                 normalize=config.normalize,
                                 normalization_constant=config.normalization_constant,
                                 orthogonal=config.orthogonal,
                                 constant=config.constant)
+        #TODO: Figure out how to linearize an entire block without completely removing the layer
         
         if config.use_modulating_vector :
             if config.down_sample :
                 raise ValueError('Modulating vectors can not be used in this setting')
             else :
                 self.vec = torch.empty(config.n_embd)
-                torch.nn.init.normal_(self.vec.weight, mean=0.0, std=0.02) #check TODO:
+                torch.nn.init.normal_(self.vec, mean=0.0, std=0.02) 
                 self.vec = nn.Parameter(self.vec, requires_grad=True)
         
 
