@@ -100,7 +100,7 @@ class ReluNNKMLP(nn.Module):
             # define some weights 
             self.input_weights = torch.empty(4*config.n_embd, config.n_embd) 
             torch.nn.init.normal_(self.input_weights, mean=0.0, std=0.02) 
-            self.c_fc = NNK_Relu(input_weights,
+            self.c_fc = NNK_Relu(self.input_weights,
                                 num_rfs=config.num_rfs,
                                 dim=config.n_embd, 
                                 model_device=config.device,
@@ -113,7 +113,7 @@ class ReluNNKMLP(nn.Module):
             self.c_proj = nn.Identity()
             self.input_weights = torch.empty(config.n_embd, config.n_embd) 
             torch.nn.init.normal_(self.input_weights, mean=0.0, std=0.02) 
-            self.c_fc = NNK_Relu(input_weights,
+            self.c_fc = NNK_Relu(self.input_weights,
                                 num_rfs=config.num_rfs,
                                 dim=config.n_embd, 
                                 model_device=config.device,
