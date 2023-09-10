@@ -1,4 +1,7 @@
 # code copied from Karpathy
+import sys
+absolute_path = "/Users/arijitsehanobish/neural-network-kernels/src/nnk/"
+sys.path.insert(1, absolute_path)
 
 import math
 
@@ -7,6 +10,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from gpt_utils import CfgNode as CN
+from nnk import NNK_Relu
 
 # -----------------------------------------------------------------------------
 
@@ -84,8 +88,71 @@ class Block(nn.Module):
         x = x + self.mlpf(self.ln_2(x))
         return x
     
+class ReluNNKMLP(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.ln_2 = nn.LayerNorm(config.n_embd)
+        self.use_modulating_vector = config.use_modulating_vector
+        self.dropout = nn.Dropout(config.resid_pdrop)
+
+        if config.down_sample : 
+            self.c_proj  = nn.Linear(4 * config.n_embd, config.n_embd)
+            # define some weights 
+            self.input_weights = torch.empty(config.n_embd, 4*config.n_embd) 
+            torch.nn.init.normal_(self.input_weights.weight, mean=0.0, std=0.02) #Check TODO#
+            self.c_fc = NNK_Relu(input_weights,
+                                num_rfs=config.num_rfs,
+                                dim=4*config.n_embd, #check TODO:
+                                model_device=config.device,
+                                seed=config.seed,
+                                normalize=config.normalize,
+                                normalization_constant=config.normalization_constant,
+                                orthogonal=config.orthogonal,
+                                constant=config.constant)
+        else : 
+            self.c_proj = nn.Identity()
+            self.input_weights = torch.empty(4*config.n_embd, config.n_embd) 
+            torch.nn.init.normal_(self.input_weights.weight, mean=0.0, std=0.02) #Check TODO#
+            self.c_fc = NNK_Relu(input_weights,
+                                num_rfs=config.num_rfs,
+                                dim=config.n_embd, #check TODO:
+                                model_device=config.device,
+                                seed=config.seed,
+                                normalize=config.normalize,
+                                normalization_constant=config.normalization_constant,
+                                orthogonal=config.orthogonal,
+                                constant=config.constant)
+        
+        if config.use_modulating_vector :
+            if config.down_sample :
+                raise ValueError('Modulating vectors can not be used in this setting')
+            else :
+                self.vec = torch.empty(config.n_embd)
+                torch.nn.init.normal_(self.vec.weight, mean=0.0, std=0.02) #check TODO:
+                self.vec = nn.Parameter(self.vec, requires_grad=True)
+        
+
+
+    def forward(self, x):
+        x = self.ln_2(x)
+        x = self.c_fc(x)
+        if self.use_modulating_vector:
+            x = self.vec*x
+        x = self.c_proj(x)
+        x = self.dropout(x)
+        return x
+    
 class ReluNNKBlock(nn.Module):
-    pass
+    def __init__(self, config):
+        super().__init__()
+        self.ln_1 = nn.LayerNorm(config.n_embd)
+        self.attn = CausalSelfAttention(config)
+        self.mlp = ReluNNKMLP(config)
+
+    def forward(self, x):
+        x = x + self.attn(self.ln_1(x))
+        x = x + self.mlp(x)
+        return x
 
 class GPT(nn.Module):
     """ GPT Language Model """
@@ -303,3 +370,15 @@ class GPT(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1)
 
         return idx
+
+class GPTLinearRelu(GPT):
+    def __init__(self, config):
+        super().__init__()
+
+        self.transformer = nn.ModuleDict(dict(
+            wte = nn.Embedding(config.vocab_size, config.n_embd),
+            wpe = nn.Embedding(config.block_size, config.n_embd),
+            drop = nn.Dropout(config.embd_pdrop),
+            h = nn.ModuleList([ReluNNKBlock(config) for _ in range(config.n_layer)]),
+            ln_f = nn.LayerNorm(config.n_embd),
+        ))

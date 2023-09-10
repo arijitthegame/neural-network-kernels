@@ -122,8 +122,6 @@ class CustomAdapter(nn.Module):
         if self.down_sample is not None:
             up = self.adapter_up(down)
         else:
-            print(down.shape)
-            print(self.modulating_vector.shape)
             up = down * self.modulating_vector
 
         output = x + up
