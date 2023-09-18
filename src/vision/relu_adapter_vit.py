@@ -1,8 +1,7 @@
 import os
 import sys
 
-absolute_path = "/Users/arijitsehanobish/neural-network-kernels/src/nnk/"
-sys.path.insert(1, absolute_path)
+sys.path.append(os.path.join(os.path.dirname(__file__), "../nnk/"))
 
 from custom_adapter import CustomReluAdapter
 
