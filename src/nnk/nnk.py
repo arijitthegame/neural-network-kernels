@@ -27,6 +27,15 @@ def input_to_rfs_torch_vectorized(
     orthogonal=False,
     proj_matrix=None,
 ):
+    """ 
+Args :
+    xw : Tensor of shape [b, s, dim] or [b, dim]
+    AB_fun, ab_fun : Callable
+    xis : vector of dimension (num_rfs)
+    dim : input dimension of xw
+    proj_matrix : matrix of size (num_rfs, dim)
+
+"""
     if normalize:
         if normalization_constant is None:
             xw = torch.nn.functional.normalize(xw)
@@ -40,14 +49,14 @@ def input_to_rfs_torch_vectorized(
     if proj_matrix is None:
         if device == "cpu":
             if orthogonal is False:
-                gs = torch.rand(size=(num_rfs, dim))
+                gs = torch.randn(size=(num_rfs, dim))
             else:
                 gs = gaussian_orthogonal_random_matrix(
                     num_rfs, dim, scaling=0, device="cpu"
                 )
         else:
             if orthogonal is False:
-                gs = torch.rand(size=(num_rfs, dim)).cuda()
+                gs = torch.randn(size=(num_rfs, dim)).cuda()
             else:
                 gs = gaussian_orthogonal_random_matrix(
                     num_rfs, dim, scaling=0, device="cuda"
@@ -89,7 +98,14 @@ def phi_relu_mapping_torch(
     normalize=False,
     normalization_constant=None,
 ):
-    # constant can be used to allow for some negative features if needed.
+    """ 
+Args :
+    xw : Tensor of shape [b, s, dim] or [b, dim]
+    dim : input dimension of xw
+    proj_matrix : matrix of size (num_rfs, dim)
+
+"""
+    # constant can be used to allow for some negative features if needed. (like leaky relu)
     if normalize:
         if normalization_constant is None:
             xw = torch.nn.functional.normalize(xw)
@@ -103,7 +119,7 @@ def phi_relu_mapping_torch(
                 num_rand_features, dim, scaling=0, device=device
             )
         else:
-            gs = torch.rand(num_rand_features, dim).to(device)  # (8,32)
+            gs = torch.randn(num_rand_features, dim).to(device)  # (8,32)
 
     else:
         gs = proj_matrix.to(device)
@@ -134,6 +150,15 @@ class NNK(nn.Module):
         orthogonal=False,
         proj_matrix=None,
     ):
+        """
+        Args : 
+            input_weights : [b, s, dim] or [b, dim]
+            A_fun, a_fun : Callable
+            xis : vector of shape (num_rfs)
+            dim : dimension of the input tensor
+            proj_matrix : matrix of shape (num_rf, dim)
+        
+        """
         super().__init__()
         self.input_weights = input_weights
         self.A_fun = A_fun
@@ -196,6 +221,12 @@ class NNK_Relu(nn.Module):
         orthogonal=False,
         constant=0,
     ):
+        """"
+        Args : 
+            input_weights : [b, s, dim] or [b, dim]
+            dim : dimension of the input tensor
+            proj_matrix : matrix of shape (num_rf, dim)
+        """
         super().__init__()
         self.input_weights = input_weights
         self.num_rfs = num_rfs
@@ -211,7 +242,7 @@ class NNK_Relu(nn.Module):
                 self.num_rfs, self.dim, scaling=0, device=self.model_device
             )
         else:
-            self.projection_matrix = torch.rand(self.num_rfs, self.dim).to(
+            self.projection_matrix = torch.randn(self.num_rfs, self.dim).to(
                 self.model_device
             )
 

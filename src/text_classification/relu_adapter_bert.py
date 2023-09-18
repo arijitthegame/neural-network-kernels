@@ -1,6 +1,6 @@
-import sys
+import os, sys
 
-sys.path.append("./nnk/")
+sys.path.append(os.path.join(os.path.dirname(__file__), "../nnk/"))
 
 import torch
 import torch.nn as nn
