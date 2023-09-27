@@ -5,3 +5,4 @@ evaluate
 peft
 accelerate
 wandb
+adapter-transformers
