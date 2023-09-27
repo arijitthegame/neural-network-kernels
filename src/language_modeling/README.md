@@ -1,2 +1,0 @@
-For a barebones implementation of LM, look at https://gist.github.com/thomwolf/ca135416a30ea387aa20edaa9b21f0ed
-Instead of BERT or GPT tokenizer, one can also just use the words in wiki as the vocab which can be a good test case. However it will take a while to train and will need significant compute resources. 

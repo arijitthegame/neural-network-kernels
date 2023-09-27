@@ -36,17 +36,6 @@ class mynetwork(nn.Module):
         xb = input_to_rfs_torch(x, A_fun, a_fun, xis, num_rfs, dim)
         return xb @ self.weights 
     
-class mynetwork1(nn.Module):
-    def __init__(self, w):
-        super().__init__() 
-        self.w = w
-        self.w = nn.Parameter(self.w)
-
-    def forward(self, x):
-        self.weights = input_to_rfs_torch(self.w, A_fun, a_fun, xis, num_rfs, dim)
-        xb = input_to_rfs_torch(x, A_fun, a_fun, xis, num_rfs, dim)
-        return xb @ self.weights
-    
 ###################### TEST
 if __name__ == "__main__":
     dim = 5
@@ -80,19 +69,7 @@ if __name__ == "__main__":
         optimizer.zero_grad()
         l = net(x)
         print(l)
-        l.backward() #quite slow
+        l.backward() 
         optimizer.step()
 
-# TEST 2
-    net1 = mynetwork1(w)
-    net1.train()
-    optimizer1 = torch.optim.Adam(net1.parameters(), lr=1e-4)
-    for i in range(5):
-        optimizer1.zero_grad()
-        l = net1(x)
-        print(l)
-        l.backward() #real slow as it calls the input_to_rf_torch twice at every forward pass
-        optimizer1.step()
-
-# Real slow to converge/does not even converge 
 
