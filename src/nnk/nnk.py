@@ -1,5 +1,6 @@
 import torch
 import math
+import numpy as np
 from torch import nn
 
 eps = 1e-10
