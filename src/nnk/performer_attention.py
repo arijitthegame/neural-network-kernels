@@ -31,7 +31,7 @@ def expplus(
     ratio = 1.0 / math.sqrt(projection_matrix.shape[0])
     data_dash = torch.einsum("blhd,md->blhm", data_normalizer * data, projection_matrix)
 
-    diag_data = data**2
+    diag_data = data ** 2
     diag_data = torch.sum(diag_data, dim=-1)
     diag_data = (diag_data / 2.0) * data_normalizer * data_normalizer
     diag_data = torch.unsqueeze(diag_data, dim=-1)
@@ -40,11 +40,11 @@ def expplus(
     # make sure to switch all dim =1 in the original code to dim=2
     _, _, l, _ = data_orig.shape
 
-    first_sum_of_squares = data**2
+    first_sum_of_squares = data ** 2
     first_sum_of_squares = torch.sum(first_sum_of_squares, axis=(-2, -1), keepdim=True)
     first_sum_of_squares *= data_normalizer * data_normalizer
     first_sum_of_squares /= l  # data.shape[1]
-    second_sum_of_squares = other_data**2
+    second_sum_of_squares = other_data ** 2
     second_sum_of_squares = torch.sum(second_sum_of_squares, (-2, -1), keepdim=True)
     second_sum_of_squares *= data_normalizer * data_normalizer
     second_sum_of_squares /= l  #  other_data.shape[1]
@@ -71,7 +71,7 @@ def expplus(
         d_coeff.requires_grad_(False)
 
     # Calculating diag_omega for the FAVOR++ mechanism:
-    diag_omega = projection_matrix**2
+    diag_omega = projection_matrix ** 2
     diag_omega = torch.sum(diag_omega, dim=-1)  # 3d tensor
     diag_omega = torch.unsqueeze(diag_omega, dim=0)
     diag_omega = torch.unsqueeze(diag_omega, dim=0)
