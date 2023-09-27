@@ -476,9 +476,37 @@ class CustomBertForSequenceClassification(nn.Module):
             attentions=outputs.attentions,
         )
 
+
 class AsymKernelBertForSequenceClassification(BertPreTrainedModel):
-    def __init__(self, config, model_name_or_path, A_fun: callable, a_fun: callable, xis: callable, num_rfs: int, device_model: str, B_fun, b_fun, M, seed, normalize):
-        super().__init__(config, model_name_or_path, A_fun, a_fun, xis, num_rfs, device_model, B_fun, b_fun, M, seed, normalize)
+    def __init__(
+        self,
+        config,
+        model_name_or_path,
+        A_fun: callable,
+        a_fun: callable,
+        xis: callable,
+        num_rfs: int,
+        device_model: str,
+        B_fun,
+        b_fun,
+        M,
+        seed,
+        normalize,
+    ):
+        super().__init__(
+            config,
+            model_name_or_path,
+            A_fun,
+            a_fun,
+            xis,
+            num_rfs,
+            device_model,
+            B_fun,
+            b_fun,
+            M,
+            seed,
+            normalize,
+        )
         self.num_labels = config.num_labels
         self.config = config
         self.A_fun = A_fun
@@ -497,34 +525,68 @@ class AsymKernelBertForSequenceClassification(BertPreTrainedModel):
         self.w = self.bert.pooler.dense.weight.to(self.device_model)
         self.b = self.bert.pooler.dense.bias.to(self.device_model)
 
-        if self.normalize is False :
-          self.w = self.w/config.hidden_size**.25 #.5
-          self.b = self.b/config.hidden_size**.25 #.5
+        if self.normalize is False:
+            self.w = self.w / config.hidden_size**0.25  # .5
+            self.b = self.b / config.hidden_size**0.25  # .5
 
         self.bert.pooler = Identity()
-        self.projection_matrix = torch.normal(mean=0, std=.02, size=(self.num_rfs, self.config.hidden_size)).to(self.device_model)
+        self.projection_matrix = torch.normal(
+            mean=0, std=0.02, size=(self.num_rfs, self.config.hidden_size)
+        ).to(self.device_model)
 
         classifier_dropout = (
-            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
+            config.classifier_dropout
+            if config.classifier_dropout is not None
+            else config.hidden_dropout_prob
         )
         self.dropout = nn.Dropout(classifier_dropout)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
-        self.first_rfv_plus = input_to_rfs_torch_vectorized(xw=self.w, AB_fun=self.B_fun, ab_fun=self.b_fun, xis=self.xis, num_rfs=self.num_rfs
-                                                        , dim=self.w.shape[1], device=self.device_model, seed=self.seed, normalize=self.normalize,
-                                                   normalization_constant=None, orthogonal=False, proj_matrix=self.projection_matrix, bias_term = self.b, M=self.M,
-                                                            is_weight=True)
-        self.first_rfv_minus = input_to_rfs_torch_vectorized(xw=self.w, AB_fun=self.B_fun, ab_fun=self.b_fun, xis=-self.xis, num_rfs=self.num_rfs
-                                                        , dim=self.w.shape[1], device=self.device_model, seed=self.seed, normalize=self.normalize,
-                                                   normalization_constant=None, orthogonal=False, proj_matrix=self.projection_matrix, bias_term = self.b, M=self.M,
-                                                             is_weight=True)
-        self.output_rfs = (1.0 / np.sqrt(2.0)) * np.power(1.0 + 4.0 * self.M, config.hidden_size / 4.0) * torch.cat(
-            [self.first_rfv_plus, self.first_rfv_minus], dim=-1)
+        self.first_rfv_plus = input_to_rfs_torch_vectorized(
+            xw=self.w,
+            AB_fun=self.B_fun,
+            ab_fun=self.b_fun,
+            xis=self.xis,
+            num_rfs=self.num_rfs,
+            dim=self.w.shape[1],
+            device=self.device_model,
+            seed=self.seed,
+            normalize=self.normalize,
+            normalization_constant=None,
+            orthogonal=False,
+            proj_matrix=self.projection_matrix,
+            bias_term=self.b,
+            M=self.M,
+            is_weight=True,
+        )
+        self.first_rfv_minus = input_to_rfs_torch_vectorized(
+            xw=self.w,
+            AB_fun=self.B_fun,
+            ab_fun=self.b_fun,
+            xis=-self.xis,
+            num_rfs=self.num_rfs,
+            dim=self.w.shape[1],
+            device=self.device_model,
+            seed=self.seed,
+            normalize=self.normalize,
+            normalization_constant=None,
+            orthogonal=False,
+            proj_matrix=self.projection_matrix,
+            bias_term=self.b,
+            M=self.M,
+            is_weight=True,
+        )
+        self.output_rfs = (
+            (1.0 / np.sqrt(2.0))
+            * np.power(1.0 + 4.0 * self.M, config.hidden_size / 4.0)
+            * torch.cat([self.first_rfv_plus, self.first_rfv_minus], dim=-1)
+        )
 
         self.output_rfs = nn.Parameter(self.output_rfs)
 
         # Initialize weights and apply final processing
         self.post_init()
+
     def forward(
         self,
         input_ids: Optional[torch.Tensor] = None,
@@ -544,7 +606,9 @@ class AsymKernelBertForSequenceClassification(BertPreTrainedModel):
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         outputs = self.bert(
             input_ids,
@@ -559,17 +623,49 @@ class AsymKernelBertForSequenceClassification(BertPreTrainedModel):
         )
         sequence_output = outputs[0]
         first_token_tensor = sequence_output[:, 0]
-        if self.normalize is False :
-          first_token_tensor = first_token_tensor/self.config.hidden_size # or normalize by \sqrt(d)
-        x_rfv_plus = input_to_rfs_torch_vectorized(xw=first_token_tensor, AB_fun=self.A_fun, ab_fun=self.a_fun, xis=self.xis, num_rfs=self.num_rfs
-                                                        , dim=first_token_tensor.shape[1], device=self.device_model, seed=self.seed, normalize=self.normalize,
-                                                   normalization_constant=None, orthogonal=False, proj_matrix=self.projection_matrix, bias_term = self.b, M=self.M,
-                                                   is_weight=False)
-        x_rfv_minus = input_to_rfs_torch_vectorized(xw=first_token_tensor, AB_fun=self.A_fun, ab_fun=self.a_fun, xis=-self.xis, num_rfs=self.num_rfs
-                                                        , dim=first_token_tensor.shape[1], device=self.device_model, seed=self.seed, normalize=self.normalize,
-                                                   normalization_constant=None, orthogonal=False, proj_matrix=self.projection_matrix, bias_term = self.b, M=self.M,
-                                                    is_weight=False)
-        x_rfs = (1.0 / np.sqrt(2.0)) * np.power(1.0 + 4.0 * self.M, self.config.hidden_size / 4.0) * torch.cat([x_rfv_plus, x_rfv_minus], dim=-1)
+        if self.normalize is False:
+            first_token_tensor = (
+                first_token_tensor / self.config.hidden_size
+            )  # or normalize by \sqrt(d)
+        x_rfv_plus = input_to_rfs_torch_vectorized(
+            xw=first_token_tensor,
+            AB_fun=self.A_fun,
+            ab_fun=self.a_fun,
+            xis=self.xis,
+            num_rfs=self.num_rfs,
+            dim=first_token_tensor.shape[1],
+            device=self.device_model,
+            seed=self.seed,
+            normalize=self.normalize,
+            normalization_constant=None,
+            orthogonal=False,
+            proj_matrix=self.projection_matrix,
+            bias_term=self.b,
+            M=self.M,
+            is_weight=False,
+        )
+        x_rfv_minus = input_to_rfs_torch_vectorized(
+            xw=first_token_tensor,
+            AB_fun=self.A_fun,
+            ab_fun=self.a_fun,
+            xis=-self.xis,
+            num_rfs=self.num_rfs,
+            dim=first_token_tensor.shape[1],
+            device=self.device_model,
+            seed=self.seed,
+            normalize=self.normalize,
+            normalization_constant=None,
+            orthogonal=False,
+            proj_matrix=self.projection_matrix,
+            bias_term=self.b,
+            M=self.M,
+            is_weight=False,
+        )
+        x_rfs = (
+            (1.0 / np.sqrt(2.0))
+            * np.power(1.0 + 4.0 * self.M, self.config.hidden_size / 4.0)
+            * torch.cat([x_rfv_plus, x_rfv_minus], dim=-1)
+        )
 
         pooled_output = (x_rfs @ self.output_rfs.t()).real
         pooled_output = self.dropout(pooled_output)
@@ -580,7 +676,9 @@ class AsymKernelBertForSequenceClassification(BertPreTrainedModel):
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
+                elif self.num_labels > 1 and (
+                    labels.dtype == torch.long or labels.dtype == torch.int
+                ):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"

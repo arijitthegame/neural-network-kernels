@@ -423,8 +423,8 @@ class NNK_Asym_Kernel(nn.Module):
         ).to(self.model_device)
 
         if self.normalize is False:
-            self.input_weights = self.input_weights / self.dim ** 0.25  # .5
-            self.b = self.b / self.dim ** 0.25  # .5
+            self.input_weights = self.input_weights / self.dim**0.25  # .5
+            self.b = self.b / self.dim**0.25  # .5
 
         self.first_rfv_plus = create_asym_feats(
             xw=self.input_weights,

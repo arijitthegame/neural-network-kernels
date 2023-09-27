@@ -62,7 +62,7 @@ class P_Measure(rv_discrete):
         norm_const = norm_const - 1.0 / self.p
 
         if self.h01:
-            norm_const = norm_const - 1.0 / (self.p ** 2)
+            norm_const = norm_const - 1.0 / (self.p**2)
             pmf_vals[k == 1] = 0
 
         return pmf_vals / norm_const

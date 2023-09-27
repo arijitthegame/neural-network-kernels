@@ -26,9 +26,31 @@ class Identity(nn.Module):
     def forward(self, x):
         return x
 
+
 class LinearBertForSequenceClassification(BertPreTrainedModel):
-    def __init__(self, config, model_name_or_path, A_fun: callable, a_fun: callable, xis: callable, num_rfs: int, device_model: str, normalization:bool, normalization_constant=None):
-        super().__init__(config, model_name_or_path, A_fun, a_fun, xis, num_rfs, device_model, normalization, normalization_constant)
+    def __init__(
+        self,
+        config,
+        model_name_or_path,
+        A_fun: callable,
+        a_fun: callable,
+        xis: callable,
+        num_rfs: int,
+        device_model: str,
+        normalization: bool,
+        normalization_constant=None,
+    ):
+        super().__init__(
+            config,
+            model_name_or_path,
+            A_fun,
+            a_fun,
+            xis,
+            num_rfs,
+            device_model,
+            normalization,
+            normalization_constant,
+        )
         self.num_labels = config.num_labels
         self.config = config
         self.A_fun = A_fun
@@ -46,16 +68,29 @@ class LinearBertForSequenceClassification(BertPreTrainedModel):
         self.bert.pooler = Identity()
 
         classifier_dropout = (
-            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
+            config.classifier_dropout
+            if config.classifier_dropout is not None
+            else config.hidden_dropout_prob
         )
         self.dropout = nn.Dropout(classifier_dropout)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
- 
-        self.output_rfs = input_to_rfs_torch_vectorized(self.w, A_fun, a_fun, xis, num_rfs, self.w.shape[1], self.device_model, self.normalization, self.normalization_constant)
+
+        self.output_rfs = input_to_rfs_torch_vectorized(
+            self.w,
+            A_fun,
+            a_fun,
+            xis,
+            num_rfs,
+            self.w.shape[1],
+            self.device_model,
+            self.normalization,
+            self.normalization_constant,
+        )
         self.output_rfs = nn.Parameter(self.output_rfs)
 
         # Initialize weights and apply final processing
         self.post_init()
+
     def forward(
         self,
         input_ids: Optional[torch.Tensor] = None,
@@ -75,7 +110,9 @@ class LinearBertForSequenceClassification(BertPreTrainedModel):
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         outputs = self.bert(
             input_ids,
@@ -90,7 +127,17 @@ class LinearBertForSequenceClassification(BertPreTrainedModel):
         )
         sequence_output = outputs[0]
         first_token_tensor = sequence_output[:, 0]
-        x_rfs = input_to_rfs_torch_vectorized(first_token_tensor, self.A_fun, self.a_fun, self.xis, self.num_rfs, first_token_tensor.shape[1], self.device_model, self.normalization, self.normalization_constant)
+        x_rfs = input_to_rfs_torch_vectorized(
+            first_token_tensor,
+            self.A_fun,
+            self.a_fun,
+            self.xis,
+            self.num_rfs,
+            first_token_tensor.shape[1],
+            self.device_model,
+            self.normalization,
+            self.normalization_constant,
+        )
         pooled_output = x_rfs @ self.output_rfs.t()
 
         pooled_output = self.dropout(pooled_output)
@@ -101,7 +148,9 @@ class LinearBertForSequenceClassification(BertPreTrainedModel):
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
+                elif self.num_labels > 1 and (
+                    labels.dtype == torch.long or labels.dtype == torch.int
+                ):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"
@@ -131,8 +180,29 @@ class LinearBertForSequenceClassification(BertPreTrainedModel):
 
 
 class BundledBertForSequenceClassification(BertPreTrainedModel):
-    def __init__(self, config, model_name_or_path, A_fun: callable, a_fun: callable, xis: callable, num_rfs: int, device_model: str, normalization:bool, normalization_constant=None):
-        super().__init__(config, model_name_or_path, A_fun, a_fun, xis, num_rfs, device_model, normalization, normalization_constant)
+    def __init__(
+        self,
+        config,
+        model_name_or_path,
+        A_fun: callable,
+        a_fun: callable,
+        xis: callable,
+        num_rfs: int,
+        device_model: str,
+        normalization: bool,
+        normalization_constant=None,
+    ):
+        super().__init__(
+            config,
+            model_name_or_path,
+            A_fun,
+            a_fun,
+            xis,
+            num_rfs,
+            device_model,
+            normalization,
+            normalization_constant,
+        )
         self.num_labels = config.num_labels
         self.config = config
         self.A_fun = A_fun
@@ -148,13 +218,16 @@ class BundledBertForSequenceClassification(BertPreTrainedModel):
         self.bert.pooler = Identity()
 
         classifier_dropout = (
-            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
+            config.classifier_dropout
+            if config.classifier_dropout is not None
+            else config.hidden_dropout_prob
         )
         self.dropout = nn.Dropout(classifier_dropout)
         self.classifier = nn.Linear(self.num_rfs, config.num_labels)
 
         # Initialize weights and apply final processing
         self.post_init()
+
     def forward(
         self,
         input_ids: Optional[torch.Tensor] = None,
@@ -174,7 +247,9 @@ class BundledBertForSequenceClassification(BertPreTrainedModel):
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
 
         outputs = self.bert(
             input_ids,
@@ -189,7 +264,17 @@ class BundledBertForSequenceClassification(BertPreTrainedModel):
         )
         sequence_output = outputs[0]
         first_token_tensor = sequence_output[:, 0]
-        x_rfs = input_to_rfs_torch_vectorized(first_token_tensor, self.A_fun, self.a_fun, self.xis, self.num_rfs, first_token_tensor.shape[1], self.device_model, self.normalization, self.normalization_constant)
+        x_rfs = input_to_rfs_torch_vectorized(
+            first_token_tensor,
+            self.A_fun,
+            self.a_fun,
+            self.xis,
+            self.num_rfs,
+            first_token_tensor.shape[1],
+            self.device_model,
+            self.normalization,
+            self.normalization_constant,
+        )
 
         pooled_output = self.dropout(x_rfs)
         logits = self.classifier(pooled_output)
@@ -199,7 +284,9 @@ class BundledBertForSequenceClassification(BertPreTrainedModel):
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
+                elif self.num_labels > 1 and (
+                    labels.dtype == torch.long or labels.dtype == torch.int
+                ):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"
