@@ -3,6 +3,7 @@ Linearizing Deep Neural Networks via RF mechanisms :
 
 
 This repository accompanies the paper ["Scalable Neural Network Kernels"](https://openreview.net/pdf?id=4iPw1klFWa)
+
 Arijit Sehanobish, Krzysztof Choromanski, Yunfan Zhao, Avinava Dubey, Valerii Likhosherstov
 
 Google DeepMind, Columbia University, Harvard University, Google Research, Waymo.
