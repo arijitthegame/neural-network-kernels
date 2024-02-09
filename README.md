@@ -6,7 +6,7 @@ This repository accompanies the paper ["Scalable Neural Network Kernels"](https:
 
 Arijit Sehanobish, Krzysztof Choromanski, Yunfan Zhao, Avinava Dubey, Valerii Likhosherstov
 
-Google DeepMind, Columbia University, Harvard University, Google Research, Waymo.
+Independent Researcher, Google DeepMind & Columbia University, Harvard University, Google Research, Waymo.
 
 The Twelfth International Conference on Learning Representations (ICLR), 2024
 
