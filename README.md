@@ -1,5 +1,8 @@
 # Scalable Neural Network Kernels 
-Linearizing Deep Neural Networks via RF mechanisms :
+## Linearizing Deep Neural Networks via RF mechanisms :
+
+Scalable neural network kernels (SNNKs) are novel kernel based methods which can be used to approximate regular feedforward layers (FFLs) with favorable computational properties. We
+introduce the mechanism of the universal random features (or URFs) which is applied to instantiate several SNNK variants. SNNKs effectively disentangle the inputs from the parameters of the neural network in the FFL, only to connect them in the final computation via the dot-product kernel (see Figure below). They are also strictly more expressive, as allowing to model complicated relationships beyond the functions of the dot-products of parameter-input vectors. 
 
 
 This repository accompanies the paper ["Scalable Neural Network Kernels"](https://openreview.net/pdf?id=4iPw1klFWa)
@@ -31,6 +34,24 @@ Vision experiments can be found in the `vision` subfolder. The subfolder contain
 - `relu_adapter_vit` : ViT model with ReLU-SNNK Adapters
 - `custom_adapter_vit` : ViT model with sine/cosine-SNNK Adapters
 - `uptrain_vit` : Custom ViT model with various MLP blocks linearized by SNNK layers
-- `finetune_vit_cifar` : Simple script to show how to use any of the custom ViT models for image classification. Uses HF Trainer. 
+- `finetune_vit_cifar` : Simple script to show how to use any of the custom ViT models for image classification. Uses HF Trainer.
+
+
+## Citation
+If you find our work useful, please cite : 
+
+```bibtex
+@inproceedings{sehanobish2023scalable,
+
+  title={Scalable Neural Network Kernels},
+  
+  author={Sehanobish, Arijit and Choromanski, Krzysztof Marcin and Zhao, Yunfan and Dubey, Kumar Avinava and Likhosherstov, Valerii},
+  
+  booktitle={The Twelfth International Conference on Learning Representations},
+  
+  year={2023}
+}
+```
+
 
 
