@@ -1,3 +1,5 @@
+## Simple script to run various custom ViTs on CiFar.
+
 import argparse
 import random
 import numpy as np
@@ -14,10 +16,14 @@ from torchvision.transforms import (
 from datasets import load_dataset
 from transformers import (
     ViTImageProcessor,
+    ViTModel,
     AutoModelForImageClassification,
     TrainingArguments,
     Trainer,
 )
+
+from relu_adapter_vit import ReluAdapterViTForImageClassification
+from uptrain_vit import MixReluNNKViTForSequenceClassification
 
 parser = argparse.ArgumentParser(description="Cifar classification using ViT")
 parser.add_argument(
@@ -31,12 +37,14 @@ parser.add_argument("--learning_rate", default=5e-5, type=float)
 parser.add_argument("--per_device_train_batch_size", default=4, type=int)
 parser.add_argument("--gradient_accumulation_steps", default=4, type=int)
 parser.add_argument("--per_device_eval_batch_size", default=16, type=int)
-parser.add_argument("--num_train_epochs", default=3, type=int)
+parser.add_argument("--num_train_epochs", default=40, type=int)
 parser.add_argument("--warmup_ratio", default=0.1, type=float)
 parser.add_argument("--logging_steps", default=10, type=int)
 parser.add_argument("--load_best_model_at_end", default=True)
 parser.add_argument("--metric_for_best_model", default="accuracy", type=str)
-parser.add_argument("--full_fine", default=False, type=bool)
+parser.add_argument("--k", default=1, type=int, help="number of layers to replace by SNNK layers")
+parser.add_argument("--device", default='cuda', type=str)
+parser.add_argument("--method", default='adapter', type=str, help="choose between linear_pooler, adapter and uptrain")
 
 args = parser.parse_args()
 np.random.seed(args.seed)
@@ -121,22 +129,94 @@ for i, label in enumerate(labels):
     label2id[label] = i
     id2label[i] = label
 
-model = AutoModelForImageClassification.from_pretrained(
-    args.model_name_or_path,
-    label2id=label2id,
-    id2label=id2label,
-    ignore_mismatched_sizes=True,  # provide this in case you're planning to fine-tune an already fine-tuned checkpoint
-)
-# finetune the pooler or the last layer
-if args.full_finetune is False:
+if args.method == 'adapter' :
+    model = ReluAdapterViTForImageClassification.from_pretrained(args.model_name_or_path, 
+                                                                config=config, 
+                                                                num_rfs=64,
+                                                                model_device=args.device,
+                                                                seed=args.seed,
+                                                                down_sample=None,
+                                                                init_weights='mam',
+                                                                ignore_mismatched_sizes = True, 
+                                                                # provide this in case you're planning to fine-tune an already fine-tuned checkpoint
+                                                                )
+
+elif args.method == 'uptrain' :
+    base_model = AutoModelForImageClassification.from_pretrained(
+            args.model_name_or_path,
+            label2id=label2id,
+            id2label=id2label,
+            ignore_mismatched_sizes=True,  
+            ).to(args.device)
+    model = MixReluNNKViTForSequenceClassification.from_pretrained(args.model_name_or_path, config=config,
+                                                             num_rfs=8,
+                                                             seed=args.seed, normalize=False,
+                                                             normalization_constant=None, #config.hidden_size**.25
+                                                             orthogonal=False,
+                                                             constant=0, 
+                                                             model_device=args.device,
+                                                             k=args.k,
+                                                             ignore_mismatched_sizes = True
+                                                            )
+
+    starting_wts = {}
+    for i in range(12-args.k, 12):
+        starting_wts[f'encoder.layer.{i}.intermediate.weights'] = phi_relu_mapping_torch(
+            xw=base_pretrained_model.base_model.encoder.layer[i].intermediate.dense.weight,
+            num_rand_features=8,
+            dim=config.hidden_size,
+            device=args.device,
+            seed=args.seed,
+            normalize=False,
+            normalization_constant=None,
+            orthogonal=False,
+            constant=0.0,
+            proj_matrix=None,
+        )
+    for i in range(12-args.k, 12):
+        with torch.no_grad() :
+            model.vit.encoder.layer[i].intermediate.weights.copy_(starting_wts[f'encoder.layer.{i}.intermediate.weights'])
+
+elif args.method == 'linear_pooler' :
+    num_rfs = 512
+    a_fun = lambda x: torch.sin(x)
+    b_fun = lambda x: torch.cos(x)
+    A_fun = lambda x: torch.sin(x)
+    B_fun = lambda x: torch.cos(x)
+
+    xis_creator = lambda x: 1.0 / (2.0 * math.pi) * (x > 0.5) - 1.0 / (2.0 * math.pi) * (x < 0.5)
+    if args.device == 'cuda':
+        random_tosses = torch.rand(num_rfs).to(0)
+    else:
+        random_tosses = torch.rand(num_rfs)
+    xis = xis_creator(random_tosses)
+    model = LinearViTForImageClassification(config, A_fun=A_fun, 
+                                            a_fun=a_fun, xis=xis, 
+                                            num_rfs=num_rfs,
+                                            model_device=args.device, 
+                                            seed=args.seed, 
+                                            normalize=False,
+                                            normalization_constant=None
+                                            )
+else : 
+    raise ValueError("Unsupported method name")
+
+if args.method == 'adapter':
     for n, p in model.named_parameters():
-        if ("pooler" in n) or ("classifier" in n):
-            p.requires_grad = True
-        else:
-            p.requires_grad = False
-else:
-    for p in model.parameters():
-        p.requires_grad = True
+        if ('adapter' in n) or ('classifier' in n) :
+            p.requires_grad = (True)
+        else :
+            p.requires_grad = (False)
+elif args.method == 'linear_pooler':
+    for n, p in model.named_parameters():
+        if ('output_rfs'in n) or ('classifier' in n):
+            p.requires_grad = (True)
+        else :
+            p.requires_grad = (False)
+else : 
+    for n, p in model.named_parameters():
+        p.requires_grad = (True)
+
 
 model_name = args.model_name_or_path.split("/")[-1]
 

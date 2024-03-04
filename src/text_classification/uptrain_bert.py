@@ -14,7 +14,6 @@ class ReluNNKBertLayer(BertLayer):
     self.constant = constant
     self.model_device = model_device
     # Note this does not ionitialize with the pretrained weights. 
-    # TODO : Get rid of this hack.
     with torch.no_grad():
       self.input_weights = BertIntermediate(config).dense.weight.data
       self.input_weights = self.input_weights.to(self.model_device)

@@ -184,6 +184,7 @@ class LinearViTForImageClassification(ViTPreTrainedModel):
         a_fun: callable,
         xis: callable,
         num_rfs: int,
+        device: str,
     ) -> None:
         super().__init__(config, A_fun, a_fun, xis, num_rfs)
 
@@ -192,10 +193,12 @@ class LinearViTForImageClassification(ViTPreTrainedModel):
         self.a_fun = a_fun
         self.xis = xis
         self.num_rfs = num_rfs
-        self.vit = ViTModel(
-            config, add_pooling_layer=False
-        )  # the og image classification model do not use the pooling layer
-        self.pooler = ViTPooler(config)  # add pooling layer
+        self.device = device
+
+        self.vit = ViTModel.from_pretrained(
+            "google/vit-base-patch16-224-in21k"
+        ).to(self.device)  # the og image classification model do not use the pooling layer
+
         # Classifier head
         self.classifier = (
             nn.Linear(config.hidden_size, config.num_labels)
@@ -203,17 +206,16 @@ class LinearViTForImageClassification(ViTPreTrainedModel):
             else nn.Identity()
         )
 
-        self.post_init()
         # Initialize weights and apply final processing
         # get weights and bias to linearize
-        self.w = self.pooler.dense.weight
-        # the bias in the pooler layer is the 0 vector so going to ignore the first pass
+        self.w = self.vit.pooler.dense.weight #using the simple linearizer so ignoring bias
         self.output_rfs = input_to_rfs_torch(
             self.w, A_fun, a_fun, xis, num_rfs, self.w.shape[1]
         )
-        # TO CHECK: Might be issues with some gradient hooks
         self.output_rfs = nn.Parameter(self.output_rfs)
+        self.vit.pooler = nn.Identity()
         # linearize the pooler layer
+        self.post_init()
 
     @add_start_docstrings_to_model_forward(VIT_INPUTS_DOCSTRING)
     @add_code_sample_docstrings(
@@ -222,7 +224,6 @@ class LinearViTForImageClassification(ViTPreTrainedModel):
         config_class=_CONFIG_FOR_DOC,
         expected_output=_IMAGE_CLASS_EXPECTED_OUTPUT,
     )
-    # TODO : Precompute the x_rfs
     def forward(
         self,
         pixel_values: Optional[torch.Tensor] = None,
