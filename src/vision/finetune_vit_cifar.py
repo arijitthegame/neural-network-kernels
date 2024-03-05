@@ -14,6 +14,7 @@ from torchvision.transforms import (
     ToTensor,
 )
 from datasets import load_dataset
+from datasets import load_metric
 from transformers import (
     ViTImageProcessor,
     ViTModel,
@@ -29,7 +30,7 @@ parser = argparse.ArgumentParser(description="Cifar classification using ViT")
 parser.add_argument(
     "--model_name_or_path", default="google/vit-base-patch16-224-in21k", type=str
 )
-parser.add_argument("--data", default="cifar", type=str)
+parser.add_argument("--data", default="cifar10", type=str)
 parser.add_argument("--remove_unused_columns", default=False)
 parser.add_argument("--evaluation_strategy", default="epoch", type=str)
 parser.add_argument("--save_strategy", default="epoch", type=str)
@@ -45,6 +46,7 @@ parser.add_argument("--metric_for_best_model", default="accuracy", type=str)
 parser.add_argument("--k", default=1, type=int, help="number of layers to replace by SNNK layers")
 parser.add_argument("--device", default='cuda', type=str)
 parser.add_argument("--method", default='adapter', type=str, help="choose between linear_pooler, adapter and uptrain")
+parser.add_argument("--seed", default=0, type=int)
 
 args = parser.parse_args()
 np.random.seed(args.seed)
