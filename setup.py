@@ -5,9 +5,9 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="snnk",
-    version="0.0.1",
-    author="SNNK Group",
-    author_email="scalable neural network kernels@gmail.com",
+    version="1.0.0",
+    author="SNNK Authors",
+    author_email="arijit.sehanobish1@gmail.com",
     description="Package for Scalable Neural Network Kernels",
     long_description="TODO",
     long_description_content_type="text/markdown",
