@@ -18,7 +18,14 @@ The Twelfth International Conference on Learning Representations (ICLR), 2024
 </p>
 
 ## Installation
-
+```bash
+git clone git@github.com:arijitthegame/neural-network-kernels.git
+cd neural-network-kernels
+python3 -m venv env
+source env/bin/activate
+pip3 install -r requirements.txt
+pip3 install -e . --user
+```
 
 ## Getting Started
 All code resides in the `src` folder. The `nnk` subfolder contains the implementation of our custom SNNK layers and SNNK-adapter layers. 
