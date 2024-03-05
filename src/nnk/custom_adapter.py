@@ -1,7 +1,7 @@
 import torch
 from torch import nn
-from nnk import NNK, NNK_Relu
-from performer_attention import gaussian_orthogonal_random_matrix
+from nnk.nnk import NNK, NNK_Relu
+from nnk.performer_attention import gaussian_orthogonal_random_matrix
 
 
 class CustomAdapter(nn.Module):

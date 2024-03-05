@@ -30,7 +30,7 @@ parser = argparse.ArgumentParser(description="Cifar classification using ViT")
 parser.add_argument(
     "--model_name_or_path", default="google/vit-base-patch16-224-in21k", type=str
 )
-parser.add_argument("--data", default="cifar10", type=str)
+parser.add_argument("--data", default="cifar", type=str)
 parser.add_argument("--remove_unused_columns", default=False)
 parser.add_argument("--evaluation_strategy", default="epoch", type=str)
 parser.add_argument("--save_strategy", default="epoch", type=str)
@@ -55,7 +55,7 @@ torch.manual_seed(args.seed)
 
 metric = load_metric("accuracy")
 
-train_ds, test_ds = load_dataset(args.data, splits=["train", "test"])
+train_ds, test_ds = load_dataset(args.data, split=["train", "test"])
 # split up training into training + validation
 splits = train_ds.train_test_split(test_size=0.1)
 train_ds = splits["train"]
