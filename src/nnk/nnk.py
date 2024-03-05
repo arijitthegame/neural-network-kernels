@@ -5,7 +5,7 @@ from torch import nn
 
 eps = 1e-10
 
-from performer_attention import gaussian_orthogonal_random_matrix
+from nnk.performer_attention import gaussian_orthogonal_random_matrix
 
 
 def torch_apply_along_axis(function, x, axis: int = 0):
