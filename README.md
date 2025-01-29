@@ -49,15 +49,13 @@ If you find our work useful, please cite :
 
 ```bibtex
 @inproceedings{sehanobish2023scalable,
-
   title={Scalable Neural Network Kernels},
-  
-  author={Sehanobish, Arijit and Choromanski, Krzysztof Marcin and Zhao, Yunfan and Dubey, Kumar Avinava and Likhosherstov, Valerii},
-  
+  author={Arijit Sehanobish and Krzysztof Marcin Choromanski and YUNFAN ZHAO and Kumar Avinava Dubey and Valerii Likhosherstov},
   booktitle={The Twelfth International Conference on Learning Representations},
-  
-  year={2024}
+  year={2024},
+  url={https://openreview.net/forum?id=4iPw1klFWa}
 }
+
 ```
 
 
